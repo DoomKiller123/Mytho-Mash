@@ -1,0 +1,3198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Star Board</title>
+<style>
+:root {
+  --bg: #14171c;
+  --panel-bg: #1b1f26;
+  --line: #2a2f38;
+  --ink: #e8e6df;
+  --ink-dim: #8b909c;
+  --p1: #4fb0ae;
+  --p1-dim: #2a4f4e;
+  --p2: #d9784f;
+  --p2-dim: #5a3a2a;
+  --gold: #e0b74e;
+  --tile-empty: #21252c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.app { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; position: relative; }
+
+.hidden { display: none !important; }
+
+/* ---------- Draft phase ---------- */
+
+.draft-screen, .pass-screen {
+  max-width: 700px;
+  margin: 60px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.draft-heading {
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.12em;
+  font-size: 1.8rem;
+  color: var(--gold);
+  margin: 0 0 20px;
+}
+
+.draft-subheading {
+  color: var(--ink);
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+.draft-counter {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+.draft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.draft-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.draft-card:hover { border-color: var(--gold); }
+.draft-card:active { transform: scale(0.97); }
+.draft-card.selected {
+  border-color: var(--gold);
+  background: rgba(224, 183, 78, 0.1);
+}
+
+.draft-card-icon {
+  font-size: 1.8rem;
+  margin-bottom: 6px;
+}
+
+.draft-card-name {
+  font-family: 'Georgia', serif;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.draft-card.selected .draft-card-name { color: var(--gold); }
+
+.draft-card-rarity {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+}
+
+.draft-confirm-btn {
+  background: rgba(224, 183, 78, 0.12);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.draft-confirm-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.draft-confirm-btn:not(:disabled):hover {
+  background: rgba(224, 183, 78, 0.2);
+}
+
+.pass-message {
+  color: var(--ink-dim);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.wiki-btn {
+  position: absolute;
+  top: 32px;
+  right: 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  color: var(--gold);
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 10;
+}
+.wiki-btn:hover { border-color: var(--gold); }
+
+.wiki-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.wiki-overlay.open { display: flex; }
+
+.wiki-modal {
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wiki-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.wiki-modal-header h2 {
+  margin: 0;
+  font-family: 'Georgia', serif;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  font-size: 1.2rem;
+}
+
+.wiki-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.wiki-close-btn:hover { color: var(--gold); }
+
+.wiki-modal-body {
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+}
+
+.wiki-char-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.wiki-char-tab {
+  background: var(--tile-empty);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: 'Georgia', serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wiki-char-tab:hover { border-color: var(--gold); }
+.wiki-char-tab.selected { border-color: var(--gold); color: var(--gold); background: rgba(224, 183, 78, 0.1); }
+
+.wiki-char-name {
+  font-family: 'Georgia', serif;
+  font-size: 1.05rem;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+.wiki-char-role { color: var(--ink-dim); font-size: 0.8rem; margin-bottom: 14px; }
+
+.wiki-ability-box {
+  background: var(--tile-empty);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+.wiki-ability-name { color: var(--gold); font-weight: bold; margin-bottom: 4px; }
+.wiki-ability-desc { color: var(--ink-dim); margin-bottom: 6px; }
+.wiki-ability-scaling { color: var(--ink-dim); font-style: italic; font-size: 0.78rem; }
+
+.wiki-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.wiki-stats-table th, .wiki-stats-table td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+.wiki-stats-table th { color: var(--ink-dim); font-weight: normal; }
+.wiki-stats-table tr.big-star-row td { color: var(--gold); font-weight: bold; }
+
+/* ---------- Combat playback (plays out directly on the main board) ---------- */
+
+.combat-status {
+  display: none;
+  text-align: center;
+  font-family: 'Georgia', serif;
+  color: var(--gold);
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+.combat-status.visible { display: block; }
+
+.combat-controls {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.combat-controls.visible { display: flex; }
+
+.speed-control {
+  display: flex;
+  gap: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.speed-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.speed-btn:hover { color: var(--ink); }
+.speed-btn.selected {
+  background: rgba(224, 183, 78, 0.15);
+  color: var(--gold);
+}
+
+.skip-combat-btn {
+  margin: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.skip-combat-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+.replay-btn {
+  display: block;
+  margin: 10px auto 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.replay-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.replay-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Generic battle-state classes, applied directly to the real board tiles
+   during playback — no separate mini-board needed. */
+.tile.defeated { opacity: 0.15; transform: scale(0.85); }
+.tile.flash-hit { animation: combat-flash 0.25s ease; }
+.tile.flash-frozen { box-shadow: 0 0 0 2px #7fd4ff; }
+
+.tile.poisoned {
+  box-shadow: inset 0 0 0 999px rgba(90, 210, 90, 0.28), 0 0 6px rgba(90, 210, 90, 0.5);
+}
+
+.tile.teleport-in {
+  animation: teleport-in-pop 0.4s ease;
+}
+@keyframes teleport-in-pop {
+  0% { transform: scale(0.2); opacity: 0.3; filter: brightness(2); }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+
+.tile.teleport-afterimage {
+  animation: teleport-afterimage-fade 0.5s ease forwards;
+  pointer-events: none;
+}
+@keyframes teleport-afterimage-fade {
+  0% { opacity: 1; filter: brightness(1.6) blur(0px); }
+  100% { opacity: 0; filter: brightness(2) blur(2px); transform: scale(0.9); }
+}
+.tile.flash-dodge { animation: combat-dodge-flash 0.4s ease; }
+
+@keyframes combat-dodge-flash {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.85); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.combat-text-popup {
+  font-size: 0.55rem;
+  color: #7fd4ff;
+  font-weight: 700;
+}
+
+.hp-bar-track {
+  display: none;
+  position: absolute;
+  top: 2px;
+  left: 8%;
+  width: 84%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  overflow: hidden;
+  z-index: 4;
+}
+.hp-bar-track.visible { display: block; }
+
+.hp-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: #4caf50;
+  transition: width 0.2s ease;
+}
+
+@keyframes combat-flash {
+  0% { filter: brightness(2.2); }
+  100% { filter: brightness(1); }
+}
+
+.combat-projectile {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 4px var(--gold);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+}
+.combat-projectile.crit { width: 11px; height: 11px; background: #ff5555; box-shadow: 0 0 6px #ff5555; }
+
+.combat-dmg-popup {
+  position: absolute;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #ff8888;
+  pointer-events: none;
+  z-index: 6;
+  animation: combat-popup-rise 0.6s ease-out forwards;
+}
+.combat-dmg-popup.crit { color: #ff5555; font-size: 0.7rem; }
+
+@keyframes combat-popup-rise {
+  from { transform: translate(-50%, -50%); opacity: 1; }
+  to { transform: translate(-50%, -160%); opacity: 0; }
+}
+
+.app-header { text-align: center; margin-bottom: 28px; }
+.app-header h1 {
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.12em;
+  font-size: 2rem;
+  margin: 0 0 6px;
+  color: var(--gold);
+}
+.subtitle { color: var(--ink-dim); font-size: 0.85rem; margin: 0; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 190px 1fr 190px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.panel h2 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+  letter-spacing: 0.05em;
+}
+
+.hearts {
+  text-align: center;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  color: #e2536b;
+  margin-bottom: 10px;
+}
+
+.shields {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+.battle-report {
+  margin-top: 12px;
+}
+
+.battle-report-header {
+  background: rgba(224, 183, 78, 0.1);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.battle-report-events {
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  font-family: 'Consolas', monospace;
+  max-height: 130px;
+  overflow-y: auto;
+}
+.battle-report-events div { padding: 2px 0; }
+
+.offer {
+  text-align: center;
+}
+
+.offer.dim {
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+  padding: 10px 0;
+}
+
+.offer-label {
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+  margin-bottom: 6px;
+}
+
+.offer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offer-btn {
+  background: var(--tile-empty);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: 'Georgia', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.offer-btn:hover { border-color: var(--gold); }
+.offer-btn:active { transform: scale(0.97); }
+
+.offer-btn.selected {
+  border-color: var(--gold);
+  background: rgba(224, 183, 78, 0.12);
+  color: var(--gold);
+}
+
+.turn-counter {
+  text-align: center;
+  font-family: 'Georgia', serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.plays-remaining {
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+  text-align: center;
+  padding: 4px 6px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+}
+
+.plays-remaining.active {
+  color: var(--gold);
+  border-color: var(--gold);
+  border-style: solid;
+}
+
+.turn-indicator {
+  text-align: center;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+.turn-indicator .name { font-weight: bold; }
+.turn-indicator .p1-color { color: var(--p1); }
+.turn-indicator .p2-color { color: var(--p2); }
+
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+  aspect-ratio: 1;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.tile {
+  background: var(--tile-empty);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease, opacity 0.3s ease;
+  position: relative;
+  user-select: none;
+}
+
+.tile:hover { border-color: var(--gold); }
+.tile:active { transform: scale(0.97); }
+
+.tile.illegal { cursor: not-allowed; opacity: 0.5; }
+
+.tile.range-preview {
+  box-shadow: inset 0 0 0 999px rgba(224, 183, 78, 0.18);
+}
+.tile.range-preview-center {
+  box-shadow: inset 0 0 0 999px rgba(224, 183, 78, 0.35), 0 0 0 1px var(--gold);
+}
+
+.tile .icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.tile.silhouette .icon {
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.tile .stars {
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+  margin-top: 1px;
+  color: var(--gold);
+}
+
+.tile.zone-p1 { background: rgba(79, 176, 174, 0.08); border-color: rgba(79, 176, 174, 0.25); }
+.tile.zone-p2 { background: rgba(217, 120, 79, 0.08); border-color: rgba(217, 120, 79, 0.25); }
+
+.stars.big-star {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #14171c;
+  background: linear-gradient(135deg, var(--gold), #fff2c4);
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.tile.big-star-tile {
+  box-shadow: 0 0 0 1px var(--gold), 0 0 10px rgba(224, 183, 78, 0.4);
+}
+
+.tile.starred-up:not(.big-star-tile) {
+  box-shadow: 0 0 0 1px var(--gold);
+}
+
+.tile.owner-p1 { background: var(--p1-dim); border-color: var(--p1); }
+.tile.owner-p1 .letter { color: var(--p1); }
+
+.tile.owner-p2 { background: var(--p2-dim); border-color: var(--p2); }
+.tile.owner-p2 .letter { color: var(--p2); }
+
+.tile .upgrade-hint {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 0.6rem;
+  color: var(--gold);
+  opacity: 0.8;
+}
+
+.log {
+  margin-top: 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  font-family: 'Consolas', monospace;
+}
+
+.log div { padding: 2px 0; }
+
+.winner-banner {
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: rgba(224, 183, 78, 0.12);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.reset-btn {
+  display: block;
+  margin: 20px auto 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.reset-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+</style>
+</head>
+<body>
+
+
+  <div class="draft-screen" id="draft-screen">
+    <h1 class="draft-heading">STAR BOARD</h1>
+    <p class="draft-subheading" id="draft-subheading">Player 1 — pick your 6 characters</p>
+    <p class="draft-counter" id="draft-counter">0 / 6 selected</p>
+    <div class="draft-grid" id="draft-grid"></div>
+    <button class="draft-confirm-btn" id="draft-confirm-btn" disabled>Confirm my 6</button>
+  </div>
+
+  <div class="pass-screen hidden" id="pass-screen">
+    <h1 class="draft-heading">STAR BOARD</h1>
+    <p class="pass-message" id="pass-message">Pass the device to Player 2.<br />Player 1's picks are now hidden.</p>
+    <button class="draft-confirm-btn" id="pass-continue-btn">I'm ready — continue</button>
+  </div>
+
+  <div class="app hidden" id="app-root">
+    <button class="wiki-btn" id="wiki-btn" title="Character Wiki">📖 Wiki</button>
+
+    <header class="app-header">
+      <h1>STAR BOARD</h1>
+      <p class="subtitle">framework test — placement &amp; upgrade only, combat not yet wired up</p>
+    </header>
+
+    <div class="layout">
+      <aside class="panel" id="panel-p1"></aside>
+
+      <main class="board-wrap">
+        <div class="turn-counter" id="turn-counter">Turn 1</div>
+        <div class="turn-indicator" id="turn-indicator"></div>
+        <div class="combat-status" id="combat-status"></div>
+        <div class="combat-controls" id="combat-controls">
+          <div class="speed-control" id="speed-control">
+            <button class="speed-btn" data-speed="0.25">0.25x</button>
+            <button class="speed-btn" data-speed="0.5">0.5x</button>
+            <button class="speed-btn selected" data-speed="1">1x</button>
+            <button class="speed-btn" data-speed="1.5">1.5x</button>
+            <button class="speed-btn" data-speed="2">2x</button>
+          </div>
+          <button class="skip-combat-btn" id="skip-combat-btn">Skip combat ▶▶</button>
+        </div>
+        <div class="board" id="board"></div>
+        <button class="replay-btn" id="replay-btn" disabled>↻ Replay last battle</button>
+        <div class="log" id="log"></div>
+        <div class="battle-report" id="battle-report"></div>
+      </main>
+
+      <aside class="panel" id="panel-p2"></aside>
+    </div>
+  </div>
+
+  <div class="wiki-overlay" id="wiki-overlay">
+    <div class="wiki-modal">
+      <div class="wiki-modal-header">
+        <h2>Character Wiki</h2>
+        <button class="wiki-close-btn" id="wiki-close-btn">✕</button>
+      </div>
+      <div class="wiki-modal-body" id="wiki-modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+/**
+ * STAR BOARD — Core Game Engine
+ * ------------------------------------------------------------
+ * Framework-agnostic (no DOM, no React) so it can be reused
+ * unchanged in a mobile app later. All game rules live here;
+ * the UI layer just calls these methods and renders the state.
+ *
+ * ASSUMPTIONS / PLACEHOLDERS (flagged clearly — tell me if any
+ * of these are wrong and I'll adjust):
+ *
+ * 1. Board is 8x8 (64 tiles), indexed 0-63, row-major.
+ * 2. ZONES: the board is divided into 2x2 blocks (a 4x4 grid of
+ *    blocks, 16 total). Each block is owned exclusively by one
+ *    player — you can only make a FRESH placement inside your
+ *    own zone. Pattern (by block-row, top to bottom):
+ *      block-row 0: P1 P2 P1 P2
+ *      block-row 1: P2 P1 P2 P1   (inverted)
+ *      block-row 2: P1 P2 P1 P2   (same as row 0)
+ *      block-row 3: P2 P1 P2 P1   (inverted)
+ *    This is permanent zone ownership, not just a starting area.
+ * 3. UNLIMITED SUPPLY: there is no cap on how many of a given
+ *    letter a player can place — no supply tracking at all.
+ *    Placing a new 1-star on an empty tile IN YOUR OWN ZONE puts
+ *    a piece down. Placing a 1-star on top of your OWN piece of
+ *    the SAME letter upgrades it: 1★ -> 2★ -> 3★ -> 4★ -> 5★.
+ *    A 6th placement on a 5★ piece turns it into a BIG STAR — a
+ *    distinct max tier (not just "6 stars"), which cannot be
+ *    upgraded any further. MAX_STARS = 6 represents this tier.
+ * 4. LETTER OFFER: you don't freely choose which letter to play.
+ *    Before each individual action, the engine randomly offers
+ *    2 of the 6 letters (uniform, distinct, e.g. "A and D"), and
+ *    the player must play one of those two. A fresh pair is
+ *    rolled after every single action (not once per turn) — so
+ *    across a 5-action turn a player sees 5 separate offers.
+ * 5. HEARTS / LIFE: each player has 5 hearts, tracked as
+ *    `this.health[playerId]`, starting at 5. Nothing currently
+ *    reduces it — this is just wired up and displayed for now,
+ *    ready for whatever depletes it once we define combat.
+ * 6. FOG OF WAR: a player's own pieces are always fully visible
+ *    to them, live. An OPPONENT's pieces are only visible as of
+ *    the last "reveal" — which happens once per round, right as
+ *    play wraps back to player 0. So during round N, neither
+ *    player can see what the other did earlier in round N; both
+ *    see it once round N+1 begins. Use `getVisibleBoard(viewerId)`
+ *    to render — never render `this.board` directly to a person,
+ *    or you leak hidden info. Move-log entries are fog-gated the
+ *    same way via `getVisibleLog(viewerId)`. This is a stand-in
+ *    for true simultaneous turns (noted as the eventual goal) —
+ *    implemented as sequential-but-hidden for this build.
+ * 7. COMBAT: at the end of each round (once both players have used
+ *    their 5 actions), everything on the board fights automatically
+ *    for up to 30 seconds — see game/combat.js for the actual battle
+ *    simulation (auto-attacks, targeting, unique abilities, crit).
+ *    The engine itself stays decoupled from combat rules the same
+ *    way it's decoupled from character stats: pass a
+ *    `combatResolver(board, rng) => result` function into the
+ *    constructor (app.js wires `simulateCombat` from combat.js in).
+ *    Whoever has MORE characters left standing (within that
+ *    simulated battle) wins the round; equal counts is a draw (no
+ *    life lost). The loser loses a heart, UNLESS they have a shield
+ *    (see below), in which case the shield absorbs it instead. A
+ *    player who loses 3 rounds IN A ROW (no win or shield-save
+ *    breaking the streak) gains one shield. A player whose hearts hit
+ *    0 loses the match (`this.winner` is then the overall match
+ *    winner, not a per-round thing).
+ *    IMPORTANT: combat NEVER modifies the board. Placed pieces are
+ *    permanent (per "once placed they cannot be moved") — every
+ *    round is a fresh, full-HP skirmish purely to decide who wins
+ *    that round, with zero lasting effect on what's actually placed.
+ * 8. Turns: each player gets 5 actions (placements/upgrades)
+ *    before play passes to the other player. The TURN COUNTER
+ *    only increments once per full round — i.e. after BOTH
+ *    players have taken their 5 actions — not after each
+ *    player's individual turn.
+ */
+
+// Guard against double-injection: some live-preview environments re-run
+// <script> tags without a full page reload, which would otherwise throw
+// "Identifier 'GameEngine' has already been declared" on the second run.
+if (typeof window === 'undefined' || !window.__starBoardEngineLoaded) {
+if (typeof window !== 'undefined') window.__starBoardEngineLoaded = true;
+
+const BOARD_ROWS = 8;
+const BOARD_COLS = 8;
+const BOARD_SIZE = BOARD_ROWS * BOARD_COLS; // 64
+const CHARACTER_TYPES = ['Assassin', 'Golem', 'Sylph', 'Angel', 'Ice Mage', 'Fire Mage']; // default roster if none is passed in
+const MAX_STARS = 6; // 1-5 are normal star tiers; 6 is the capped "Big Star" tier
+const BIG_STAR_THRESHOLD = 6;
+const DEFAULT_ACTIONS_PER_TURN = 5;
+const DEFAULT_STARTING_HEARTS = 5;
+const LOSSES_FOR_SHIELD = 3;
+
+class GameEngine {
+  /**
+   * @param {object} options
+   * @param {string[]} options.playerIds - e.g. ['P1', 'P2']
+   * @param {string[]} options.characterTypes - the FULL roster available in
+   *        the game (e.g. every character in characters.js). Used as a
+   *        fallback if a player has no draft in `playerRosters`, and for
+   *        validating moves generally. Defaults to the built-in six.
+   * @param {object} options.playerRosters - optional { [playerId]: string[] }
+   *        — each player's own DRAFTED subset (e.g. 6 characters they
+   *        picked before the match). When present, that player's random
+   *        letter-offers are drawn ONLY from their own draft, not the full
+   *        roster — this is what makes the pre-game character draft matter.
+   *        A player missing from this object falls back to `characterTypes`.
+   * @param {number} options.actionsPerTurn - actions allowed before the
+   *        turn passes to the other player (default 5)
+   * @param {number} options.startingHearts - life total per player (default 5)
+   * @param {function} options.combatResolver - (board, rng) => combat result,
+   *        called automatically at the end of every round. Pass
+   *        `simulateCombat` from combat.js, partially applied with
+   *        characters.js's exports (see app.js for how they're wired
+   *        together). If omitted, no combat runs (useful for tests that
+   *        only care about placement/turn logic).
+   * @param {function} options.rng - optional () => number in [0,1), for
+   *        deterministic testing. Defaults to Math.random. Also passed
+   *        into combatResolver so battles can be seeded too.
+   */
+  constructor({
+    playerIds = ['P1', 'P2'],
+    characterTypes = CHARACTER_TYPES,
+    playerRosters = {},
+    actionsPerTurn = DEFAULT_ACTIONS_PER_TURN,
+    startingHearts = DEFAULT_STARTING_HEARTS,
+    combatResolver = null,
+    rng = Math.random,
+  } = {}) {
+    if (playerIds.length !== 2) {
+      throw new Error('GameEngine currently supports exactly 2 players.');
+    }
+    if (!Array.isArray(characterTypes) || characterTypes.length < 2) {
+      throw new Error('characterTypes must be an array with at least 2 letters.');
+    }
+
+    this.playerIds = playerIds;
+    this.characterTypes = characterTypes;
+    this.playerRosters = playerRosters;
+    this.actionsPerTurn = actionsPerTurn;
+    this._rng = rng;
+    this._combatResolver = combatResolver;
+
+    // board[i] is either null (empty) or a piece object:
+    // { owner, type, stars }
+    this.board = new Array(BOARD_SIZE).fill(null);
+
+    // Snapshot of `board` as of the last reveal (start of the current
+    // round). Used to hide in-progress opponent moves — see getVisibleBoard.
+    this.revealedBoard = new Array(BOARD_SIZE).fill(null);
+
+    this.health = {};
+    this.shields = {};
+    this.consecutiveRoundLosses = {};
+    for (const pid of playerIds) {
+      this.health[pid] = startingHearts;
+      this.shields[pid] = 0;
+      this.consecutiveRoundLosses[pid] = 0;
+    }
+
+    this.currentPlayerIndex = 0;
+    this.turnNumber = 1; // increments once per full ROUND (both players played)
+    this.actionsRemaining = actionsPerTurn; // actions left for current player THIS turn
+    this.winner = null; // set when the MATCH ends (hearts hit 0), not per-round
+    this.lastCombatResult = null; // most recent battle's result, for UI display
+    this.log = []; // { round, player, message } — player is null for system messages
+
+    this.currentOptions = null; // the 2 letters offered for the NEXT action
+    this._rollOptions();
+  }
+
+  get currentPlayer() {
+    return this.playerIds[this.currentPlayerIndex];
+  }
+
+  get opponentOf() {
+    return (playerId) => this.playerIds.find((p) => p !== playerId);
+  }
+
+  /**
+   * Which player owns the 2x2 zone that a given board index falls in.
+   * Board is split into a 4x4 grid of 2x2 blocks; ownership alternates
+   * P1/P2 across block-columns, and flips row-to-row (checkerboard of
+   * blocks). See header comment for the exact pattern.
+   */
+  getZoneOwner(index) {
+    this._assertValidIndex(index);
+    const row = Math.floor(index / BOARD_COLS);
+    const col = index % BOARD_COLS;
+    const blockRow = Math.floor(row / 2);
+    const blockCol = Math.floor(col / 2);
+    const evenBlockRow = blockRow % 2 === 0; // rows 0,2 vs 1,3
+    const ownerIsPlayer0 = evenBlockRow ? blockCol % 2 === 0 : blockCol % 2 === 1;
+    return ownerIsPlayer0 ? this.playerIds[0] : this.playerIds[1];
+  }
+
+  // ---------- Queries ----------
+
+  getCell(index) {
+    this._assertValidIndex(index);
+    return this.board[index];
+  }
+
+  getHealth(playerId) {
+    this._assertValidPlayer(playerId);
+    return this.health[playerId];
+  }
+
+  getShields(playerId) {
+    this._assertValidPlayer(playerId);
+    return this.shields[playerId];
+  }
+
+  /**
+   * The board as `viewerId` should be allowed to see it right now:
+   * - Their own pieces are always shown live (fully up to date).
+   * - The opponent's pieces are only shown as of the last reveal
+   *   (start of the current round) — anything the opponent has
+   *   done THIS round is hidden until the next round begins.
+   * Always use this for rendering to a human. `this.board` is the
+   * true state and should stay server/engine-side only.
+   */
+  /**
+   * The board as `viewerId` should be allowed to see it right now:
+   * - Their own pieces are always shown live (fully up to date).
+   * - The opponent's pieces are only shown as of the last reveal
+   *   (start of the current round) — anything the opponent has
+   *   done THIS round is hidden until the next round begins.
+   * Always use this for rendering to a human during PLACEMENT. `this.board`
+   * is the true state and should stay server/engine-side only.
+   *
+   * NOTE: star count is NOT specially revealed here during placement/
+   * fog-of-war. Making 2+ star pieces obviously marked only matters
+   * DURING combat playback (both boards are fully known there anyway,
+   * since combat runs on the true board) — see app.js's combat
+   * playback for where that marking actually happens.
+   */
+  getVisibleBoard(viewerId) {
+    this._assertValidPlayer(viewerId);
+    const visible = new Array(BOARD_SIZE).fill(null);
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      const trueCell = this.board[i];
+      if (trueCell && trueCell.owner === viewerId) {
+        visible[i] = trueCell; // always fully see your own pieces, live
+      } else {
+        visible[i] = this.revealedBoard[i]; // opponent: last-revealed snapshot only
+      }
+    }
+    return visible;
+  }
+
+  /**
+   * Move log filtered the same way as getVisibleBoard: your own
+   * moves are always visible; the opponent's moves from the
+   * CURRENT (not-yet-revealed) round are hidden; system messages
+   * (player: null) are always visible.
+   */
+  getVisibleLog(viewerId) {
+    this._assertValidPlayer(viewerId);
+    return this.log
+      .filter((entry) => entry.player === null || entry.player === viewerId || entry.round < this.turnNumber)
+      .map((entry) => entry.message);
+  }
+
+  /** Count of characters currently on the board for a player. */
+  countCharacters(playerId) {
+    return this.board.filter((cell) => cell && cell.owner === playerId).length;
+  }
+
+  /** The roster a player draws random offers from: their own draft if they have one, else the full characterTypes list. */
+  rosterFor(playerId) {
+    return this.playerRosters[playerId] || this.characterTypes;
+  }
+
+  /**
+   * Legal moves for the current player using the currently offered
+   * letters only: a list of { index, type, action }.
+   */
+  getLegalMoves(playerId = this.currentPlayer) {
+    const moves = [];
+    const allowedTypes = playerId === this.currentPlayer ? this.currentOptions : this.rosterFor(playerId);
+    for (const type of allowedTypes) {
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        const cell = this.board[i];
+        if (cell === null) {
+          if (this.getZoneOwner(i) !== playerId) continue; // not your zone
+          moves.push({ index: i, type, action: 'place' });
+        } else if (cell.owner === playerId && cell.type === type && cell.stars < MAX_STARS) {
+          moves.push({ index: i, type, action: 'upgrade' });
+        }
+      }
+    }
+    return moves;
+  }
+
+  // ---------- Actions ----------
+
+  /**
+   * Place a new 1-star piece on an empty tile, or upgrade an
+   * existing own piece of the same letter by one star. `type`
+   * must be one of the two letters currently offered.
+   */
+  playMove(playerId, index, type) {
+    this._assertGameNotOver();
+    this._assertValidIndex(index);
+    this._assertValidType(type);
+    if (playerId !== this.currentPlayer) {
+      throw new Error(`It's not ${playerId}'s turn.`);
+    }
+    if (!this.currentOptions.includes(type)) {
+      throw new Error(`${type} was not offered this play — choose one of: ${this.currentOptions.join(', ')}.`);
+    }
+
+    const cell = this.board[index];
+
+    if (cell === null) {
+      // Fresh placement — must be inside your own zone
+      const zoneOwner = this.getZoneOwner(index);
+      if (zoneOwner !== playerId) {
+        throw new Error(`Tile ${index} is in ${zoneOwner}'s zone — you can only place in your own zone.`);
+      }
+      this.board[index] = { owner: playerId, type, stars: 1 };
+      this._log(playerId, `${playerId} places ${type} (1★) at tile ${index}.`);
+    } else if (cell.owner === playerId && cell.type === type) {
+      // Upgrade own stack
+      if (cell.stars >= MAX_STARS) {
+        throw new Error(`${type} at tile ${index} is already at max stars and cannot be upgraded further.`);
+      }
+      cell.stars += 1;
+      if (cell.stars === BIG_STAR_THRESHOLD) {
+        this._log(playerId, `${playerId}'s ${type} at tile ${index} becomes a BIG STAR — max tier, cannot be upgraded further.`);
+      } else {
+        this._log(playerId, `${playerId} upgrades ${type} at tile ${index} to ${cell.stars}★.`);
+      }
+    } else {
+      throw new Error(
+        `Illegal move: tile ${index} is occupied by ${cell.owner}'s ${cell.type} (${cell.stars}★).`
+      );
+    }
+
+    this.actionsRemaining -= 1;
+
+    if (this.actionsRemaining <= 0) {
+      this._advanceTurn(); // may run combat and set this.winner (match over)
+    }
+    if (!this.winner) {
+      this._rollOptions();
+    }
+    return this.board[index];
+  }
+
+  /**
+   * Runs the combat simulation for everything currently on the board
+   * (via the injected combatResolver) and applies the result to
+   * hearts/shields, checking for a match winner. The board itself is
+   * NEVER modified by combat — placed pieces are permanent (per the
+   * original "once placed they cannot be moved" rule) regardless of
+   * how a battle goes. Combat is purely a repeatable skirmish that
+   * decides who wins the ROUND (and therefore who loses a heart); it
+   * has no lasting effect on what's actually on the board. No-ops if
+   * no combatResolver was provided.
+   */
+  _runCombatRound() {
+    if (!this._combatResolver) return;
+
+    const result = this._combatResolver(this.board, this._rng);
+    this.lastCombatResult = result;
+
+    for (const line of result.events) {
+      this._log(null, line);
+    }
+
+    this._applyRoundResult(result.roundWinner);
+  }
+
+  /**
+   * Applies a round's outcome to hearts/shields/streaks, per the rules:
+   * - Draw: nothing happens.
+   * - Otherwise the loser loses a heart, UNLESS they have a shield, in
+   *   which case the shield absorbs it instead (and their loss streak
+   *   resets, since the shield "saved" them).
+   * - A player who loses LOSSES_FOR_SHIELD rounds in a row (with no
+   *   win or shield-save in between) gains one shield, and their
+   *   streak resets so they need another full streak to earn another.
+   * - Winning always resets the winner's own loss streak to 0.
+   * - A player whose hearts hit 0 loses the match.
+   */
+  _applyRoundResult(roundWinnerId) {
+    if (roundWinnerId === null) {
+      this._log(null, `Round ${this.turnNumber - 1} was a draw — no life lost.`);
+      return;
+    }
+
+    const loserId = this.opponentOf(roundWinnerId);
+    this.consecutiveRoundLosses[roundWinnerId] = 0;
+
+    if (this.shields[loserId] > 0) {
+      this.shields[loserId] -= 1;
+      this.consecutiveRoundLosses[loserId] = 0;
+      this._log(null, `${loserId}'s shield absorbs the round loss!`);
+    } else {
+      this.health[loserId] -= 1;
+      this.consecutiveRoundLosses[loserId] += 1;
+      this._log(null, `${loserId} loses a life (${this.health[loserId]} remaining).`);
+
+      if (this.consecutiveRoundLosses[loserId] >= LOSSES_FOR_SHIELD) {
+        this.shields[loserId] += 1;
+        this.consecutiveRoundLosses[loserId] = 0;
+        this._log(null, `${loserId} has lost ${LOSSES_FOR_SHIELD} rounds in a row and gains a shield!`);
+      }
+    }
+
+    if (this.health[loserId] <= 0) {
+      this.winner = roundWinnerId;
+      this._log(null, `${roundWinnerId} wins the match — ${loserId} is out of lives!`);
+    }
+  }
+
+  // ---------- Internal helpers ----------
+
+  /** Uniformly picks 2 distinct characters out of the CURRENT PLAYER's own roster for the next play. */
+  _rollOptions() {
+    const pool = [...this.rosterFor(this.currentPlayer)];
+    const first = pool.splice(Math.floor(this._rng() * pool.length), 1)[0];
+    const second = pool.length > 0 ? pool.splice(Math.floor(this._rng() * pool.length), 1)[0] : first;
+    this.currentOptions = [first, second];
+  }
+
+  _advanceTurn() {
+    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.playerIds.length;
+    this.actionsRemaining = this.actionsPerTurn;
+    // Only bump the round/turn counter once both players have had a turn
+    // (i.e. we've wrapped back around to player 0). This is also the
+    // moment everything played this round becomes visible to both sides,
+    // and when combat actually runs.
+    if (this.currentPlayerIndex === 0) {
+      this.turnNumber += 1;
+      this._log(null, `— Round ${this.turnNumber - 1} revealed —`);
+      this._runCombatRound(); // mutates this.board (casualties), may set this.winner
+      // revealedBoard becomes the POST-combat state — the correct fog-of-war
+      // baseline for next round (survivors visible, casualties gone).
+      this.revealedBoard = this._cloneBoard();
+    }
+  }
+
+  _cloneBoard() {
+    return this.board.map((cell) => (cell ? { ...cell } : null));
+  }
+
+  _log(player, message) {
+    this.log.push({ round: this.turnNumber, player, message });
+  }
+
+  _assertValidIndex(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= BOARD_SIZE) {
+      throw new Error(`Invalid board index: ${index}`);
+    }
+  }
+
+  _assertValidType(type) {
+    if (!this.characterTypes.includes(type)) {
+      throw new Error(`Invalid character type: ${type}`);
+    }
+  }
+
+  _assertValidPlayer(playerId) {
+    if (!this.playerIds.includes(playerId)) {
+      throw new Error(`Invalid player id: ${playerId}`);
+    }
+  }
+
+  _assertGameNotOver() {
+    if (this.winner) {
+      throw new Error(`Game is already over. Winner: ${this.winner}`);
+    }
+  }
+}
+
+// Works both as a CommonJS module (Node, tests, future React Native bundler)
+// and as a plain <script> include in the browser (no build step needed).
+const exportsObj = {
+  GameEngine,
+  BOARD_SIZE,
+  BOARD_ROWS,
+  BOARD_COLS,
+  CHARACTER_TYPES,
+  MAX_STARS,
+  BIG_STAR_THRESHOLD,
+  DEFAULT_ACTIONS_PER_TURN,
+  DEFAULT_STARTING_HEARTS,
+  LOSSES_FOR_SHIELD,
+};
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = exportsObj;
+}
+if (typeof window !== 'undefined') {
+  window.StarBoard = exportsObj;
+}
+
+} // end double-injection guard
+
+</script>
+  <script>
+/**
+ * STAR BOARD — Character Stats
+ * ------------------------------------------------------------
+ * Character identity/balance data, kept separate from engine.js
+ * on purpose: engine.js only knows a piece is "{ type, stars }"
+ * and never stores computed stats on the piece itself — this file
+ * is the single source of truth for what those numbers actually
+ * are. That means balance changes (or filling in real character
+ * concepts later) never touch game logic.
+ *
+ * IDENTIFIERS: characters are keyed and referred to by NAME now,
+ * not a single letter (e.g. "Ice Mage", not "E"). The engine treats
+ * `type` as an opaque string either way, so this needed no engine
+ * changes beyond the default fallback roster below.
+ *
+ * PLACEHOLDER STATE: base stats (HP/ATK/ATK speed/range) are still
+ * rough placeholders — only a little intentional variance so far:
+ * Golem (tank) has slightly higher HP, Assassin has slightly higher
+ * ATK. Unique abilities and their scaling ARE the real, locked
+ * concepts.
+ *
+ * SCALING: "bigger jumps at higher stars" (exponential-ish), via
+ * STAR_GROWTH_RATE compounding per star, plus an extra multiplier
+ * when a piece reaches Big Star. Tuned so HP/ATK land at roughly
+ * 2.5x base at 5★ and roughly 3.5x base at Big Star. See
+ * computeCharacterStats().
+ *
+ * ABILITY STATS: each character's `abilityStats` array lists the
+ * specific numeric knobs their unique ability uses (e.g. Assassin's
+ * bonus-damage % AND the HP-threshold % are two separate stats).
+ * Each entry gives the value at 1★, the value at 5★, and a separate
+ * value at Big Star (Big Star is a distinct jump, not a continuation
+ * of the curve — same philosophy as HP/ATK). Stars 2-4 are LINEARLY
+ * interpolated between the 1★ and 5★ values — this is an assumption
+ * since only the endpoints were specified; flag it if that's wrong
+ * and a different curve (or fixed per-star values) is wanted instead.
+ * getAbilityStatsAtStar() below does this and is what the wiki reads
+ * — the wiki never touches uniqueAbility.scalingNotes directly for
+ * numbers, only for the prose description.
+ *
+ * CRIT: every character has a flat 5% crit chance and 2x crit
+ * multiplier — global, not per-character, and intentionally not
+ * shown in the wiki (see CRIT_CHANCE / CRIT_MULTIPLIER below).
+ */
+
+if (typeof window === 'undefined' || !window.__starBoardCharactersLoaded) {
+if (typeof window !== 'undefined') window.__starBoardCharactersLoaded = true;
+
+// Each star multiplies the previous tier's stats by this factor.
+// Tuned so growthRate^4 (the multiplier at 5★) lands at ~2.5x base.
+const STAR_GROWTH_RATE = 1.26;
+
+// On top of the normal per-star compounding, reaching Big Star (the 6th
+// placement, capped, see engine.js) applies one extra multiplier — tuned
+// so the combined total at Big Star lands at ~3.5x base, a real step up
+// from 5★'s ~2.5x rather than just "one more star."
+const BIG_STAR_BONUS_MULTIPLIER = 1.1;
+
+const BIG_STAR_STAR_LEVEL = 6;
+
+// Global combat constants — apply uniformly to every character, so they
+// live here rather than per-character in CHARACTER_DEFS. Not surfaced
+// in the wiki on purpose.
+const CRIT_CHANCE = 0.05;
+const CRIT_MULTIPLIER = 2.0;
+
+/**
+ * All six characters, keyed by NAME. Base stats are at 1★ —
+ * computeCharacterStats() scales everything above that.
+ * `uniqueAbility` (name + prose description) shows in the wiki as-is.
+ * `abilityStats` (see header comment) drives the numeric stat table
+ * in the wiki. `internalNotes`, where present, is implementation-only
+ * detail that intentionally does NOT get surfaced in the wiki (e.g.
+ * hidden interactions between abilities) — kept here so it's not
+ * lost, but renderWiki() in app.js must never read it.
+ */
+const CHARACTER_DEFS = {
+  Assassin: {
+    rarity: 'Common',
+    icon: '🗡️',
+    baseStats: { hp: 100, atk: 23, atkSpeed: 1.0, range: 1 }, // slightly higher ATK — assassin flavor
+    uniqueAbility: {
+      name: 'Finisher',
+      description: 'Deals extra damage to enemies below a certain HP threshold.',
+    },
+    abilityStats: [
+      { label: 'Bonus damage vs. low HP', unit: '%', star1: 30, star5: 60, big: 70 },
+      { label: 'HP threshold', unit: '%', star1: 30, star5: 45, big: 50 },
+    ],
+  },
+  Golem: {
+    rarity: 'Common',
+    icon: '🛡️',
+    baseStats: { hp: 115, atk: 0, atkSpeed: 1.0, range: 2 }, // slightly higher HP — tank flavor
+    uniqueAbility: {
+      name: 'Taunt',
+      description: "At the start of battle, all enemies in this character's range are forced to attack it.",
+    },
+    abilityStats: [
+      { label: 'Taunt duration', unit: 's', star1: 2, star5: 3.5, big: 4 },
+    ],
+  },
+  Sylph: {
+    rarity: 'Common',
+    icon: '🧚',
+    baseStats: { hp: 100, atk: 5, atkSpeed: 1.0, range: 1 },
+    uniqueAbility: {
+      name: 'Dreamy Look',
+      description: 'Boosts the attack speed of allies in range.',
+    },
+    abilityStats: [
+      { label: 'Attack speed boost', unit: '%', star1: 30, star5: 50, big: 50 },
+      { label: 'Ability range', unit: '', star1: 1, star5: 1, big: 2 },
+    ],
+  },
+  Angel: {
+    rarity: 'Common',
+    icon: '😇',
+    baseStats: { hp: 100, atk: 5, atkSpeed: 1.0, range: 1 },
+    uniqueAbility: {
+      name: 'Resurrection',
+      description: 'When this character dies, it revives an allied character (not another Angel) that died in a directly adjacent tile (up, down, left, or right).',
+    },
+    abilityStats: [
+      { label: 'Revive HP', unit: '%', star1: 30, star5: 50, big: 60 },
+    ],
+  },
+  'Ice Mage': {
+    rarity: 'Common',
+    icon: '❄️',
+    baseStats: { hp: 100, atk: 20, atkSpeed: 1.0, range: 2 },
+    uniqueAbility: {
+      name: 'Frost',
+      description: 'Inflicts Cold on the target, reducing their attack speed per stack. At max stacks, consumes all Cold and inflicts Freeze instead, disabling all movement and abilities.',
+    },
+    abilityStats: [
+      { label: 'Attack speed reduction per Cold stack', unit: '%', star1: 10, star5: 10, big: 10 },
+      { label: 'Cold duration', unit: 's', star1: 5, star5: 7, big: 7 },
+      { label: 'Cold stacks to trigger Freeze', unit: '', star1: 6, star5: 6, big: 6 },
+      { label: 'Freeze duration', unit: 's', star1: 2, star5: 2, big: 3 },
+    ],
+    internalNotes: "Secret interaction (not shown in wiki): when this character's attack passes over an ally, it reduces that ally's Burn stacks by 1.",
+  },
+  'Fire Mage': {
+    rarity: 'Common',
+    icon: '🔥',
+    baseStats: { hp: 100, atk: 20, atkSpeed: 1.0, range: 2 },
+    uniqueAbility: {
+      name: 'Burner',
+      description: 'Burns the target, dealing repeated burn damage over its duration. Burn can stack.',
+    },
+    abilityStats: [
+      { label: 'Burn damage per tick', unit: '% ATK', star1: 30, star5: 30, big: 'Becomes 50% ATK as one-time base damage' },
+      { label: 'Burn duration', unit: 's', star1: 4, star5: 6, big: 6 },
+      { label: 'Max Burn stacks', unit: '', star1: 5, star5: 5, big: 5 },
+    ],
+    internalNotes: "Secret interaction (not shown in wiki): when this character's attack passes over an ally, it reduces that ally's Cold stacks by 1 (does not affect Freeze).",
+  },
+  Gladiator: {
+    rarity: 'Rare',
+    icon: '⚔️',
+    baseStats: { hp: 130, atk: 16, atkSpeed: 1.0, range: 2 },
+    uniqueAbility: {
+      name: 'Thirst for Survival',
+      description: 'When its own HP falls below a threshold, deals bonus damage to enemies.',
+    },
+    abilityStats: [
+      { label: 'HP threshold to activate', unit: '%', star1: 30, star5: 45, big: 55 },
+      // NOTE: only the Big Star value (70%) was given for this one — the
+      // 5★ value below (60%) is ASSUMED as a reasonable midpoint, not
+      // something explicitly specified. Flag if it should be different.
+      { label: 'Bonus damage dealt', unit: '%', star1: 45, star5: 60, big: 70 },
+    ],
+    internalNotes: 'Secret (not shown in wiki): while below its own HP threshold, also takes 20% reduced damage from all attacks.',
+  },
+  Sniper: {
+    rarity: 'Rare',
+    icon: '🏹',
+    baseStats: { hp: 85, atk: 14, atkSpeed: 1.0, range: 3 },
+    uniqueAbility: {
+      name: 'Pivotal Positioning',
+      description: 'Damage increases the further away its target is, up to a cap.',
+    },
+    abilityStats: [
+      { label: 'Max distance damage bonus', unit: '%', star1: 40, star5: 65, big: 80 },
+    ],
+    internalNotes:
+      'Distance scaling formula (not shown in wiki): bonus = min(cap, (cap/2) * distance-in-tiles). ' +
+      'At 1★ (cap 40%) this means +0% at distance 0, +20% at distance 1, +40% at distance 2 or more — ' +
+      'matches the stated "0 / 20% / 40%" example exactly, and scales the same way at every star tier using that tier\'s own cap.',
+  },
+  Medusa: {
+    rarity: 'Rare',
+    icon: '🐍',
+    baseStats: { hp: 120, atk: 8, atkSpeed: 1.0, range: 1 },
+    uniqueAbility: {
+      name: 'Petrifying Gaze',
+      description:
+        'When Medusa takes damage, inflicts Harden on the attacker, reducing their attack speed per stack. ' +
+        'At 6 stacks, the attacker is turned to Stone (fully disabled) for a duration, and takes increased damage from all attacks while Stoned.',
+    },
+    abilityStats: [
+      { label: 'Stone duration', unit: 's', star1: 4, star5: 7, big: 8.5 },
+      // NOTE: only the Big Star value (60%) was given here too — the 5★
+      // value below (45%) is an assumed midpoint, same caveat as Gladiator.
+      { label: 'Increased damage taken while Stoned', unit: '%', star1: 30, star5: 45, big: 60 },
+    ],
+    internalNotes:
+      'Harden stacks to trigger Stone: flat 6 (not stated to scale). Attack speed reduction per Harden ' +
+      'stack: flat 10% (not stated to scale), same mechanic as Ice Mage\'s Cold. ' +
+      'Cleanup rule (not shown in wiki): if Medusa is defeated, every Harden stack and active Stone status ' +
+      'she caused is immediately cleared from the battle.',
+  },
+  Basilisk: {
+    rarity: 'Epic',
+    icon: '🦎',
+    baseStats: { hp: 125, atk: 8, atkSpeed: 1.4, range: 2 },
+    uniqueAbility: {
+      name: 'Venom',
+      description:
+        'Inflicts stacking Poison (damage over time based on the target\'s max HP, up to a stack cap). ' +
+        'Instantly executes enemies it hits that are below a low-HP threshold. Attack speed itself scales ' +
+        'unusually fast for this character compared to others.',
+    },
+    abilityStats: [
+      { label: 'Execution threshold', unit: '%', star1: 15, star5: 20, big: 22 },
+      { label: 'Poison damage per stack', unit: '% of target max HP/s', star1: 2, star5: 2, big: 2 },
+      { label: 'Max Poison stacks', unit: '', star1: 8, star5: 8, big: 8 },
+      // Special multiplier ON TOP OF the normal attack-speed scaling
+      // curve every other character uses — see combat.js for how this
+      // is actually applied (it's not a normal stat, it modifies the
+      // scaling formula itself).
+      { label: 'Bonus ATK speed multiplier (beyond normal scaling)', unit: 'x', star1: 1, star5: 2, big: 2.2 },
+    ],
+    internalNotes:
+      'Targeting override (not shown in wiki): once Basilisk stacks max Poison on its current target, it ' +
+      'switches to a random different enemy in range — UNLESS it is Taunted, in which case Taunt still forces ' +
+      'it to keep attacking the taunter until that target dies.',
+  },
+  Kitsune: {
+    rarity: 'Epic',
+    icon: '🦊',
+    baseStats: { hp: 57, atk: 27, atkSpeed: 1.0, range: 1 },
+    uniqueAbility: {
+      name: 'Yako',
+      description:
+        'When attacked, has a chance to dodge, teleport to the nearest empty tile to the attacker, counterattack ' +
+        'it immediately, and permanently gain a small amount of attack speed. If this triggers while below a ' +
+        'low-HP threshold, instead escapes to a random empty tile on the board (once per battle only).',
+    },
+    abilityStats: [
+      { label: 'Dodge chance', unit: '%', star1: 30, star5: 50, big: 60 },
+      // NOTE: only 1★ (15%) and Big Star (20%) were given for the escape
+      // threshold — the 5★ value below (17.5%) is an assumed midpoint.
+      { label: 'Escape HP threshold', unit: '%', star1: 15, star5: 17.5, big: 20 },
+    ],
+    internalNotes:
+      'Flat, non-scaling details (not shown in wiki): dodge has a 2-second cooldown between procs; each ' +
+      'successful dodge (non-escape) grants +0.5 flat attack speed permanently, stacking with repeated procs; ' +
+      'the escape teleport can only happen once per battle; teleports (both the normal dodge and the escape) ' +
+      'only ever land on an empty tile within Kitsune\'s OWN player\'s zone, same restriction as a fresh placement.',
+  },
+};
+
+/**
+ * Computes a character's actual core stats at a given star level.
+ * @param {string} type - a key in CHARACTER_DEFS (character name)
+ * @param {number} stars - 1 through 6 (6 = Big Star)
+ * @returns {{hp:number, atk:number, atkSpeed:number, range:number, stars:number, isBigStar:boolean}}
+ */
+function computeCharacterStats(type, stars) {
+  const def = CHARACTER_DEFS[type];
+  if (!def) throw new Error(`Unknown character type: ${type}`);
+  if (!Number.isInteger(stars) || stars < 1 || stars > BIG_STAR_STAR_LEVEL) {
+    throw new Error(`Invalid star level: ${stars}`);
+  }
+
+  const isBigStar = stars >= BIG_STAR_STAR_LEVEL;
+  let multiplier = Math.pow(STAR_GROWTH_RATE, stars - 1);
+  if (isBigStar) multiplier *= BIG_STAR_BONUS_MULTIPLIER;
+
+  const { baseStats } = def;
+  return {
+    stars,
+    isBigStar,
+    hp: Math.round(baseStats.hp * multiplier),
+    atk: Math.round(baseStats.atk * multiplier),
+    // atkSpeed scales more gently — usually you don't want attack
+    // speed compounding as hard as raw damage, so it uses a softened
+    // exponent. Easy to change once real balance numbers exist.
+    atkSpeed: Math.round(baseStats.atkSpeed * Math.pow(multiplier, 0.5) * 100) / 100,
+    range: baseStats.range, // range placeholder: flat for now, TBD if it should scale
+  };
+}
+
+/**
+ * Formats a single ability-stat value for display. Strings (e.g. Fire
+ * Mage's Big Star damage-type change) pass through as-is; numbers get
+ * their unit suffix appended.
+ */
+function formatAbilityStatValue(value, unit) {
+  if (typeof value === 'string') return value;
+  return `${value}${unit || ''}`;
+}
+
+/**
+ * Value of one ability-stat entry at a given star level, UNFORMATTED
+ * (number or string, whatever the entry's own values are — no unit
+ * suffix appended). This is what combat math should use.
+ * 1★-5★ is a LINEAR interpolation between star1 and star5 (an
+ * assumption — see header comment); Big Star uses its own value
+ * directly, same philosophy as the HP/ATK Big Star jump.
+ */
+function computeAbilityStatRaw(entry, stars) {
+  if (stars >= BIG_STAR_STAR_LEVEL) {
+    return entry.big;
+  }
+  if (typeof entry.star1 === 'number' && typeof entry.star5 === 'number') {
+    const t = (stars - 1) / 4; // 0 at 1★, 1 at 5★
+    const raw = entry.star1 + (entry.star5 - entry.star1) * t;
+    return Math.round(raw * 10) / 10;
+  }
+  return entry.star1;
+}
+
+/** Same as computeAbilityStatRaw, but formatted for display (unit suffix appended). */
+function computeAbilityStatValue(entry, stars) {
+  return formatAbilityStatValue(computeAbilityStatRaw(entry, stars), entry.unit);
+}
+
+/** All of a character's ability stats, computed at a given star level (formatted, for the wiki). */
+function getAbilityStatsAtStar(type, stars) {
+  const def = CHARACTER_DEFS[type];
+  if (!def) throw new Error(`Unknown character type: ${type}`);
+  return (def.abilityStats || []).map((entry) => ({
+    label: entry.label,
+    value: computeAbilityStatValue(entry, stars),
+  }));
+}
+
+/**
+ * Raw (unformatted) ability-stat values for a character at a given
+ * star level, keyed by label — this is what combat.js reads to
+ * parametrize ability behavior (e.g. taunt duration in seconds as an
+ * actual number, not the display string "2s").
+ */
+function getAbilityStatsRaw(type, stars) {
+  const def = CHARACTER_DEFS[type];
+  if (!def) throw new Error(`Unknown character type: ${type}`);
+  const result = {};
+  for (const entry of def.abilityStats || []) {
+    result[entry.label] = computeAbilityStatRaw(entry, stars);
+  }
+  return result;
+}
+
+/** Convenience: core stats + ability stats for every star tier, for wiki display. */
+function getAllStarTiers(type) {
+  const tiers = [];
+  for (let s = 1; s <= BIG_STAR_STAR_LEVEL; s++) {
+    tiers.push({
+      ...computeCharacterStats(type, s),
+      abilityStats: getAbilityStatsAtStar(type, s),
+    });
+  }
+  return tiers;
+}
+
+const exportsObj = {
+  CHARACTER_DEFS,
+  STAR_GROWTH_RATE,
+  BIG_STAR_BONUS_MULTIPLIER,
+  CRIT_CHANCE,
+  CRIT_MULTIPLIER,
+  computeCharacterStats,
+  getAbilityStatsAtStar,
+  getAbilityStatsRaw,
+  getAllStarTiers,
+};
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = exportsObj;
+}
+if (typeof window !== 'undefined') {
+  window.StarBoardCharacters = exportsObj;
+}
+
+} // end double-injection guard
+
+</script>
+  <script>
+/**
+ * STAR BOARD — Combat Simulation
+ * ------------------------------------------------------------
+ * Runs one full 30-second battle between everything currently on
+ * the board, and returns who's left standing. Kept as its own
+ * module, separate from engine.js, for the same reason
+ * characters.js is: engine.js should never need to know HOW combat
+ * works, just that calling the injected `combatResolver` gives back
+ * a result. See engine.js's `combatResolver` constructor option.
+ *
+ * BIG ASSUMPTION — ROUNDS ARE STATELESS SKIRMISHES: every round,
+ * everyone currently on the board starts at FULL (freshly computed)
+ * HP and fights from scratch. Damage does NOT carry over between
+ * rounds — only survival does (a piece that dies is removed from
+ * the board permanently; a piece that survives is untouched, at
+ * full HP, ready for the next round). This felt like the more fun
+ * "auto-battler" interpretation (recurring skirmishes, permanent
+ * board attrition, hearts track match score) rather than one
+ * continuous HP pool worn down round after round. Flag it if you
+ * wanted the latter instead — it's a small change (persist HP on
+ * the board cell instead of recomputing fresh each round).
+ *
+ * SIMULATION MODEL: the full battle is computed INSTANTLY in one shot
+ * (a tight loop over 0.1s ticks) and returned as a complete `timeline`
+ * of timestamped events. The UI then replays that timeline in real
+ * time directly on the board (projectiles, hit flashes, HP bars) —
+ * see app.js's playCombatAnimation. This function itself has no
+ * concept of "real time" passing; it's a deterministic instant
+ * calculation that produces a script for the UI to act out.
+ *
+ * STALEMATE TIMEOUT: if nobody fires a single attack for
+ * STALEMATE_TIMEOUT seconds straight (e.g. everyone left alive is out
+ * of range of every enemy), the battle ends early rather than running
+ * out the full 30 seconds doing nothing.
+ *
+ * TARGETING: nearest enemy in range (Chebyshev/king-move distance on
+ * the 8x8 grid), ties broken by lowest board index for determinism.
+ *
+ * ABILITIES: implemented by character NAME (bespoke behavior can't
+ * be purely data-driven), reading each character's interpolated
+ * ability-stat values from characters.js so balance changes there
+ * are picked up automatically:
+ *   - Assassin (Finisher): bonus damage vs. low-HP targets.
+ *   - Golem (Taunt): forces enemies in range to target it, at
+ *     battle start, for a duration.
+ *   - Sylph (Dreamy Look): continuous attack-speed buff to allies
+ *     in its ability range (recalculated every tick, stops if Sylph
+ *     dies).
+ *   - Angel (Resurrection): on death, revives an ally that died
+ *     earlier in the SAME battle, in a directly adjacent tile
+ *     (up/down/left/right only, never diagonal), at a % of max HP.
+ *     Cannot revive another Angel.
+ *   - Ice Mage (Frost): stacks Cold on hit (slows attack speed),
+ *     converts to Freeze (skips attacks entirely) at the stack cap.
+ *   - Fire Mage (Burner): stacks Burn on hit (damage over time);
+ *     at Big Star this instead becomes a one-time bonus hit, per
+ *     the character's own ability text.
+ *   - Secret interaction: Ice Mage's and Fire Mage's shots reduce
+ *     the opposing status by 1 stack on any ally the projectile's
+ *     line passes over (approximated with a simple grid line-trace).
+ *   - Gladiator (Thirst for Survival): below its own HP threshold,
+ *     deals bonus damage AND takes reduced damage from everyone.
+ *   - Sniper (Pivotal Positioning): damage scales up with distance to
+ *     target, capped — see the distance formula near its usage.
+ *   - Medusa (Petrifying Gaze): being hit stacks Harden onto the
+ *     ATTACKER (not onto Medusa), converting to Stone (fully disabled,
+ *     increased damage taken from everyone) at the stack cap. All of
+ *     it clears immediately if Medusa herself dies.
+ *   - Basilisk (Venom): stacking Poison DOT (ticks independently of
+ *     the normal attack loop), instant execution below a threshold,
+ *     a sticky target that only switches once Poison caps out (unless
+ *     Taunted), and a special extra attack-speed multiplier on top of
+ *     its already-scaled base rate.
+ *   - Kitsune (Yako): chance to dodge an attack entirely, teleporting
+ *     to the NEAREST empty tile to her attacker (only within her own
+ *     zone), immediately counterattacking it, and permanently gaining
+ *     attack speed; escapes to a random own-zone tile instead (no
+ *     counterattack) if this triggers while critically low on HP
+ *     (once per battle).
+ * New characters added via characters.js get full auto-attack combat
+ * automatically, but a brand new UNIQUE ABILITY needs matching code
+ * added here — abilities are bespoke behavior, not just data.
+ */
+
+if (typeof window === 'undefined' || !window.__starBoardCombatLoaded) {
+if (typeof window !== 'undefined') window.__starBoardCombatLoaded = true;
+
+const BOARD_COLS = 8;
+const SIMULATION_DURATION = 30; // seconds
+const SIMULATION_DT = 0.1; // seconds per tick
+const PROJECTILE_SPEED = 8; // tiles per second — "simple projectile" travel time
+const STALEMATE_TIMEOUT = 5; // seconds of nobody attacking before the battle ends early
+
+function indexToRowCol(index) {
+  return { row: Math.floor(index / BOARD_COLS), col: index % BOARD_COLS };
+}
+
+function chebyshevDistance(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  return Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col));
+}
+
+/** True only for the 4 direct orthogonal neighbors (up/down/left/right) — no diagonals, no further. */
+function isOrthogonallyAdjacent(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  const rowDiff = Math.abs(a.row - b.row);
+  const colDiff = Math.abs(a.col - b.col);
+  return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+}
+
+/** Grid cells strictly between two indices, along the straight line between them (for "projectile passes over" checks). */
+function tilesBetween(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  const steps = Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col));
+  const tiles = [];
+  if (steps <= 1) return tiles; // adjacent or same tile — nothing "between"
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const row = Math.round(a.row + (b.row - a.row) * t);
+    const col = Math.round(a.col + (b.col - a.col) * t);
+    tiles.push(row * BOARD_COLS + col);
+  }
+  return tiles;
+}
+
+/**
+ * Local re-implementation of engine.js's zone-ownership formula, needed
+ * for Kitsune's teleport (which must only land in HER OWN player's
+ * zone, same restriction as a fresh placement). This assumes the
+ * standard 'P1'/'P2' player IDs the rest of the game always uses —
+ * combat.js otherwise has no coupling to engine.js, so this duplicates
+ * the math rather than importing it. Keep in sync with
+ * GameEngine.getZoneOwner() if that pattern ever changes.
+ */
+function localZoneOwner(index) {
+  const { row, col } = indexToRowCol(index);
+  const blockRow = Math.floor(row / 2);
+  const blockCol = Math.floor(col / 2);
+  const evenBlockRow = blockRow % 2 === 0;
+  const ownerIsP1 = evenBlockRow ? blockCol % 2 === 0 : blockCol % 2 === 1;
+  return ownerIsP1 ? 'P1' : 'P2';
+}
+
+/**
+ * Runs one full battle.
+ * @param {Array<{owner,type,stars}|null>} board - the true board (length 64)
+ * @param {object} characterData - the exports of characters.js (computeCharacterStats, getAbilityStatsRaw, CRIT_CHANCE, CRIT_MULTIPLIER)
+ * @param {function} rng - () => number in [0,1)
+ * @returns {{
+ *   roundWinner: string|null,   // playerId, or null for a draw
+ *   p1Id: string, p2Id: string,
+ *   aliveCounts: {[playerId]: number},
+ *   deaths: number[],           // board indices that were knocked out DURING
+ *                                 this simulated battle (for reporting/animation
+ *                                 only — the real board is never touched)
+ *   events: string[],           // human-readable battle log
+ *   durationSeconds: number,    // how long the battle actually took (<=30)
+ *   timeline: Array<object>,    // timestamped events for animated playback —
+ *                                 see the push calls below for each event's shape
+ * }}
+ */
+function simulateCombat(board, characterData, rng) {
+  const { computeCharacterStats, getAbilityStatsRaw, CRIT_CHANCE, CRIT_MULTIPLIER } = characterData;
+
+  // ---------- Build combatants from the board ----------
+  const combatants = [];
+  const playerIds = [];
+  for (let i = 0; i < board.length; i++) {
+    const cell = board[i];
+    if (!cell) continue;
+    if (!playerIds.includes(cell.owner)) playerIds.push(cell.owner);
+    const stats = computeCharacterStats(cell.type, cell.stars);
+    const ability = getAbilityStatsRaw(cell.type, cell.stars);
+    combatants.push({
+      index: i,
+      owner: cell.owner,
+      type: cell.type,
+      stars: cell.stars,
+      isBigStar: stats.isBigStar,
+      maxHp: stats.hp,
+      hp: stats.hp,
+      atk: stats.atk,
+      baseAtkSpeed: stats.atkSpeed,
+      range: stats.range,
+      ability,
+      alive: true,
+      diedAt: null,
+      cooldown: 0,
+      cold: { stacks: 0, expiresAt: 0 },
+      freeze: { expiresAt: 0 },
+      burn: { stacks: 0, expiresAt: 0, sourceAtk: 0, tickTimer: 0 },
+      tauntUntil: 0,
+      tauntTargetIndex: null,
+      // Gladiator: no extra state needed, checked live off current hp
+      // Medusa: Harden applies to whoever attacks HER; Stone applies to them too
+      harden: { stacks: 0, sourceIndex: null },
+      stone: { expiresAt: 0, sourceIndex: null, damageIncreasePercent: 0 },
+      // Basilisk: poison (DOT, no fixed duration — ticks until stacks run out is not a thing here,
+      // it just persists) + a sticky target so it doesn't re-evaluate "nearest" every tick
+      poison: { stacks: 0, tickTimer: 0 },
+      stickyTargetIndex: null,
+      // Kitsune: dodge/teleport state
+      dodgeCooldownUntil: 0,
+      hasEscaped: false,
+      flatAtkSpeedBonus: 0,
+    });
+  }
+
+  const events = [];
+  const timeline = []; // timestamped events for the UI to animate — see push() calls below
+  const [p1Id, p2Id] = playerIds.length === 2 ? playerIds : [playerIds[0] || 'P1', playerIds[0] === 'P1' ? 'P2' : 'P1'];
+
+  const byIndex = new Map(combatants.map((c) => [c.index, c]));
+  const projectiles = []; // { id, sourceIndex, targetIndex, impactAt, damage, isCrit, sourceType }
+  let nextProjectileId = 1;
+
+  function aliveEnemiesOf(owner) {
+    return combatants.filter((c) => c.alive && c.owner !== owner);
+  }
+  function aliveAlliesOf(owner) {
+    return combatants.filter((c) => c.alive && c.owner === owner);
+  }
+
+  function killCombatant(c, atTime) {
+    c.alive = false;
+    c.hp = 0;
+    c.diedAt = atTime;
+    events.push(`${c.type} (${c.owner}) is defeated.`);
+    timeline.push({ t: atTime, type: 'death', index: c.index });
+
+    // Angel: on death, try to revive an ally that died earlier this battle,
+    // in one of the 4 direct adjacent tiles (up/down/left/right) — never
+    // diagonal, never at range, and never another Angel.
+    if (c.type === 'Angel') {
+      const revivePercent = c.ability['Revive HP'] || 0;
+      const candidates = combatants
+        .filter((x) => !x.alive && x.owner === c.owner && x.type !== 'Angel' && x.diedAt !== null)
+        .filter((x) => isOrthogonallyAdjacent(c.index, x.index))
+        .sort((a, b) => b.diedAt - a.diedAt); // most recently died first
+      const revived = candidates[0];
+      if (revived) {
+        revived.alive = true;
+        revived.diedAt = null;
+        revived.hp = Math.round(revived.maxHp * (revivePercent / 100));
+        revived.cooldown = 0;
+        events.push(`${c.type}'s Resurrection revives ${revived.type} at ${revivePercent}% HP!`);
+        timeline.push({ t: atTime, type: 'revive', index: revived.index, hp: revived.hp });
+      }
+    }
+
+    // Medusa: if she dies, every Harden stack and Stone status she personally
+    // caused is immediately cleared from the battle.
+    if (c.type === 'Medusa') {
+      for (const x of combatants) {
+        if (x.harden.sourceIndex === c.index) {
+          x.harden.stacks = 0;
+          x.harden.sourceIndex = null;
+        }
+        if (x.stone.sourceIndex === c.index) {
+          x.stone.expiresAt = 0;
+          x.stone.sourceIndex = null;
+        }
+      }
+      events.push(`${c.type}'s death clears all Harden and Stone she caused.`);
+    }
+  }
+
+  // ---------- Golem Taunt: applies once, at battle start ----------
+  for (const c of combatants) {
+    if (c.type !== 'Golem' || !c.alive) continue;
+    const duration = c.ability['Taunt duration'] || 0;
+    for (const enemy of aliveEnemiesOf(c.owner)) {
+      if (chebyshevDistance(c.index, enemy.index) <= c.range) {
+        enemy.tauntUntil = duration;
+        enemy.tauntTargetIndex = c.index;
+      }
+    }
+  }
+  if (combatants.some((c) => c.type === 'Golem')) {
+    events.push('Golem(s) taunt nearby enemies at the start of the battle.');
+  }
+
+  // ---------- Main simulation loop ----------
+  let time = 0;
+  let lastFireTime = 0; // resets whenever anyone launches an attack — see STALEMATE_TIMEOUT
+  while (time < SIMULATION_DURATION) {
+    const p1AliveNow = aliveAlliesOf(p1Id).length;
+    const p2AliveNow = aliveAlliesOf(p2Id).length;
+    if (p1AliveNow === 0 || p2AliveNow === 0) break; // early stop — one side wiped
+    if (time - lastFireTime >= STALEMATE_TIMEOUT) {
+      events.push(`No attacks for ${STALEMATE_TIMEOUT}s straight — battle ends early (stalemate).`);
+      break;
+    }
+
+    // Resolve any projectiles that land this tick
+    for (let pIdx = projectiles.length - 1; pIdx >= 0; pIdx--) {
+      const proj = projectiles[pIdx];
+      if (proj.impactAt > time) continue;
+      projectiles.splice(pIdx, 1);
+      const target = byIndex.get(proj.targetIndex);
+      if (!target || !target.alive) continue; // target already died to something else
+
+      // Kitsune: chance to dodge entirely, teleport, and gain attack speed —
+      // or escape to a random own-zone tile if critically low on HP.
+      // A successful dodge negates the hit completely: no damage, no
+      // status effects, nothing else about this projectile applies.
+      if (target.type === 'Kitsune' && time >= target.dodgeCooldownUntil) {
+        const dodgeChance = target.ability['Dodge chance'] || 0;
+        if (rng() * 100 < dodgeChance) {
+          target.dodgeCooldownUntil = time + 2; // flat 2s cooldown, not stated to scale
+          // Always show SOME feedback at the moment of the dodge, at her
+          // current (pre-teleport) tile — otherwise a dodge with no
+          // available teleport tile (the common case in practice, since
+          // it must land in her own zone) looks like nothing happened at
+          // all, which is indistinguishable from a bug.
+          timeline.push({ t: time, type: 'dodge', index: target.index });
+          const hpPercent = (target.hp / target.maxHp) * 100;
+          const escapeThreshold = target.ability['Escape HP threshold'] || 0;
+          const occupied = new Set(combatants.filter((c) => c.alive && c.index !== target.index).map((c) => c.index));
+
+          if (!target.hasEscaped && hpPercent < escapeThreshold) {
+            // Escape: random empty tile anywhere in Kitsune's own zone, once per battle.
+            const candidates = [];
+            for (let t2 = 0; t2 < 64; t2++) {
+              if (localZoneOwner(t2) === target.owner && !occupied.has(t2)) candidates.push(t2);
+            }
+            if (candidates.length > 0) {
+              const newIndex = candidates[Math.floor(rng() * candidates.length)];
+              byIndex.delete(target.index);
+              target.index = newIndex;
+              byIndex.set(newIndex, target);
+              target.hasEscaped = true;
+              events.push(`${target.type} escapes to a random tile, dodging the hit!`);
+              timeline.push({ t: time, type: 'teleport', index: newIndex, from: proj.targetIndex });
+            }
+          } else {
+            // Normal dodge: teleport to the NEAREST empty tile (in her own
+            // zone) to the attacker — not one fixed "directly behind" spot,
+            // which in practice almost never existed and made this ability
+            // do nothing most of the time. Then immediately counterattacks
+            // the attacker from her new position.
+            let newIndex = null;
+            let bestDist = Infinity;
+            let candidates = [];
+            for (let t2 = 0; t2 < 64; t2++) {
+              if (localZoneOwner(t2) !== target.owner || occupied.has(t2)) continue;
+              const dist = chebyshevDistance(t2, proj.sourceIndex);
+              if (dist < bestDist) {
+                bestDist = dist;
+                candidates = [t2];
+              } else if (dist === bestDist) {
+                candidates.push(t2);
+              }
+            }
+            if (candidates.length > 0) {
+              newIndex = candidates[Math.floor(rng() * candidates.length)];
+              byIndex.delete(target.index);
+              target.index = newIndex;
+              byIndex.set(newIndex, target);
+              timeline.push({ t: time, type: 'teleport', index: newIndex, from: proj.targetIndex });
+            }
+            target.flatAtkSpeedBonus += 0.5; // permanent, stacks with repeated procs
+            events.push(`${target.type} dodges, teleports, and gains attack speed!`);
+
+            // Immediate counterattack against the attacker, if she landed within range of it.
+            if (newIndex !== null) {
+              const attacker = byIndex.get(proj.sourceIndex);
+              if (attacker && attacker.alive) {
+                const counterDistance = chebyshevDistance(newIndex, attacker.index);
+                if (counterDistance <= target.range) {
+                  const counterIsCrit = rng() < CRIT_CHANCE;
+                  const counterTravelTime = counterDistance / PROJECTILE_SPEED;
+                  const counterId = nextProjectileId++;
+                  projectiles.push({
+                    id: counterId,
+                    sourceIndex: newIndex,
+                    targetIndex: attacker.index,
+                    impactAt: time + counterTravelTime,
+                    damage: target.atk,
+                    isCrit: counterIsCrit,
+                    sourceType: target.type,
+                  });
+                  timeline.push({
+                    t: time,
+                    type: 'fire',
+                    id: counterId,
+                    from: newIndex,
+                    to: attacker.index,
+                    travelTime: counterTravelTime,
+                    sourceType: target.type,
+                    isCrit: counterIsCrit,
+                    damage: Math.round(target.atk),
+                  });
+                  events.push(`${target.type} counterattacks!`);
+                  // This counter-strike counts as her attack for this cycle.
+                  const effAtkSpeed = target.baseAtkSpeed + target.flatAtkSpeedBonus;
+                  target.cooldown = 1 / Math.max(0.05, effAtkSpeed);
+                }
+              }
+            }
+          }
+          continue; // hit fully negated — no damage, no status effects
+        }
+      }
+
+      let damage = proj.damage;
+      if (proj.isCrit) damage *= CRIT_MULTIPLIER;
+
+      // Stone (from Medusa): target takes increased damage from EVERYONE while Stoned.
+      if (target.stone.expiresAt > time) {
+        damage *= 1 + target.stone.damageIncreasePercent / 100;
+      }
+      // Gladiator: takes reduced damage from everyone while below its own HP threshold.
+      if (target.type === 'Gladiator') {
+        const hpPercent = (target.hp / target.maxHp) * 100;
+        const threshold = target.ability['HP threshold to activate'];
+        if (hpPercent < threshold) damage *= 0.8; // flat 20% reduction, not stated to scale
+      }
+
+      target.hp -= damage;
+      events.push(`${proj.sourceType} hits ${target.type}${proj.isCrit ? ' (CRIT)' : ''} for ${Math.round(damage)}.`);
+      timeline.push({
+        t: time,
+        type: 'impact',
+        from: proj.sourceIndex,
+        to: proj.targetIndex,
+        damage: Math.round(damage),
+        isCrit: proj.isCrit,
+      });
+
+      // Basilisk: instant execution if the target is still alive but below the threshold after this hit.
+      if (proj.sourceType === 'Basilisk' && target.hp > 0) {
+        const executionThreshold = byIndex.get(proj.sourceIndex)?.ability['Execution threshold'] || 0;
+        const hpPercentAfter = (target.hp / target.maxHp) * 100;
+        if (hpPercentAfter < executionThreshold) {
+          events.push(`${target.type} is executed by Basilisk's Venom!`);
+          target.hp = 0;
+        }
+      }
+      // Basilisk: stacking Poison DOT (separate from the execution check above).
+      if (proj.sourceType === 'Basilisk' && target.hp > 0) {
+        const source = byIndex.get(proj.sourceIndex);
+        const maxStacks = source ? source.ability['Max Poison stacks'] : 8;
+        target.poison.stacks = Math.min(maxStacks, target.poison.stacks + 1);
+        timeline.push({ t: time, type: 'poison', index: target.index }); // UI: persistent green glow while poisoned
+      }
+
+      // Medusa: when SHE is the one hit, Harden stacks onto the ATTACKER (not onto Medusa).
+      if (target.type === 'Medusa') {
+        const attacker = byIndex.get(proj.sourceIndex);
+        if (attacker && attacker.alive && attacker.stone.expiresAt <= time) {
+          if (attacker.harden.sourceIndex === null || attacker.harden.sourceIndex === target.index) {
+            attacker.harden.sourceIndex = target.index;
+            attacker.harden.stacks += 1;
+            const stacksToStone = 6; // flat, not stated to scale
+            if (attacker.harden.stacks >= stacksToStone) {
+              attacker.harden.stacks = 0;
+              const stoneDuration = target.ability['Stone duration'];
+              const dmgIncrease = target.ability['Increased damage taken while Stoned'];
+              attacker.stone.expiresAt = time + stoneDuration;
+              attacker.stone.sourceIndex = target.index;
+              attacker.stone.damageIncreasePercent = dmgIncrease;
+              events.push(`${attacker.type} is turned to Stone by Medusa's gaze!`);
+              timeline.push({ t: time, type: 'freeze', index: attacker.index }); // reuse the freeze visual for Stone
+            }
+          }
+        }
+      }
+
+      // Ice Mage: apply Cold / Freeze
+      if (proj.sourceType === 'Ice Mage') {
+        const source = byIndex.get(proj.sourceIndex);
+        const coldDuration = source ? source.ability['Cold duration'] : 5;
+        const stacksToFreeze = source ? source.ability['Cold stacks to trigger Freeze'] : 6;
+        const freezeDuration = source ? source.ability['Freeze duration'] : 2;
+        if (target.freeze.expiresAt <= time) {
+          target.cold.stacks += 1;
+          target.cold.expiresAt = time + coldDuration;
+          if (target.cold.stacks >= stacksToFreeze) {
+            target.cold.stacks = 0;
+            target.freeze.expiresAt = time + freezeDuration;
+            events.push(`${target.type} is Frozen!`);
+            timeline.push({ t: time, type: 'freeze', index: target.index });
+          }
+        }
+      }
+
+      // Fire Mage: apply Burn, or Big Star's one-time bonus damage instead
+      if (proj.sourceType === 'Fire Mage') {
+        const source = byIndex.get(proj.sourceIndex);
+        if (source && source.isBigStar) {
+          const bonus = source.atk * 0.5;
+          target.hp -= bonus;
+          events.push(`${target.type} takes ${Math.round(bonus)} bonus fire damage.`);
+          timeline.push({ t: time, type: 'damage', index: target.index, amount: Math.round(bonus) });
+        } else if (source) {
+          const burnDuration = source.ability['Burn duration'];
+          const maxStacks = source.ability['Max Burn stacks'];
+          target.burn.stacks = Math.min(maxStacks, target.burn.stacks + 1);
+          target.burn.expiresAt = time + burnDuration;
+          target.burn.sourceAtk = source.atk;
+        }
+      }
+
+      // Secret interactions: projectile passes over allies, strips 1 stack of the opposing status
+      if (proj.sourceType === 'Ice Mage' || proj.sourceType === 'Fire Mage') {
+        const passedTiles = tilesBetween(proj.sourceIndex, proj.targetIndex);
+        for (const tileIndex of passedTiles) {
+          const passed = byIndex.get(tileIndex);
+          if (!passed || !passed.alive) continue;
+          const source = byIndex.get(proj.sourceIndex);
+          if (!source || passed.owner !== source.owner) continue; // allies only
+          if (proj.sourceType === 'Ice Mage' && passed.burn.stacks > 0) passed.burn.stacks -= 1;
+          if (proj.sourceType === 'Fire Mage' && passed.cold.stacks > 0) passed.cold.stacks -= 1;
+        }
+      }
+
+      if (target.hp <= 0 && target.alive) {
+        killCombatant(target, time);
+      }
+    }
+
+    // Tick ongoing status effects (Burn DOT, expiries)
+    for (const c of combatants) {
+      if (!c.alive) continue;
+      if (c.burn.stacks > 0 && time < c.burn.expiresAt) {
+        c.burn.tickTimer -= SIMULATION_DT;
+        if (c.burn.tickTimer <= 0) {
+          c.burn.tickTimer = 0.5;
+          const perTickPercent = 30; // base burn %, refined by source at application time via sourceAtk
+          const dmg = perTickPercent / 100 * c.burn.sourceAtk * c.burn.stacks;
+          c.hp -= dmg;
+          timeline.push({ t: time, type: 'damage', index: c.index, amount: Math.round(dmg) });
+          if (c.hp <= 0) killCombatant(c, time);
+        }
+      } else if (c.burn.stacks > 0 && time >= c.burn.expiresAt) {
+        c.burn.stacks = 0;
+      }
+      if (c.cold.stacks > 0 && time >= c.cold.expiresAt) {
+        c.cold.stacks = 0;
+      }
+      // Basilisk's Poison: no duration/expiry — ticks once per second based on
+      // current stack count for as long as any stacks remain.
+      if (c.poison.stacks > 0) {
+        c.poison.tickTimer -= SIMULATION_DT;
+        if (c.poison.tickTimer <= 0) {
+          c.poison.tickTimer = 1;
+          const perStackPercent = 2; // flat, not stated to scale
+          const dmg = (perStackPercent / 100) * c.maxHp * c.poison.stacks;
+          c.hp -= dmg;
+          timeline.push({ t: time, type: 'damage', index: c.index, amount: Math.round(dmg) });
+          if (c.hp <= 0) killCombatant(c, time);
+        }
+      }
+    }
+
+    // Cancel any in-flight projectiles whose target has died since they
+    // were fired (e.g. something else killed it first) — otherwise the
+    // UI would keep animating a projectile flying at an already-defeated
+    // character, which looks like "still attacking the dead Golem."
+    for (let pIdx = projectiles.length - 1; pIdx >= 0; pIdx--) {
+      const proj = projectiles[pIdx];
+      const target = byIndex.get(proj.targetIndex);
+      if (!target || !target.alive) {
+        timeline.push({ t: time, type: 'cancel', id: proj.id });
+        projectiles.splice(pIdx, 1);
+      }
+    }
+
+    // Sylph: continuous attack-speed buff, recalculated live
+    const sylphBuffedIndices = new Map(); // index -> boost fraction (e.g. 0.3)
+    for (const c of combatants) {
+      if (c.type !== 'Sylph' || !c.alive) continue;
+      const boostPercent = c.ability['Attack speed boost'] || 0;
+      const abilityRange = c.ability['Ability range'] || c.range;
+      for (const ally of aliveAlliesOf(c.owner)) {
+        if (ally.index === c.index) continue;
+        if (chebyshevDistance(c.index, ally.index) <= abilityRange) {
+          const existing = sylphBuffedIndices.get(ally.index) || 0;
+          sylphBuffedIndices.set(ally.index, Math.max(existing, boostPercent / 100));
+        }
+      }
+    }
+
+    // Attacks: each alive, non-frozen, non-Stoned combatant with cooldown ready fires at its target
+    for (const c of combatants) {
+      if (!c.alive) continue;
+      if (c.atk <= 0) continue; // 0-ATK characters (e.g. Golem) never attack — nothing to deal
+      if (time < c.freeze.expiresAt) continue; // frozen — cannot attack
+      if (time < c.stone.expiresAt) continue; // Stoned (Medusa) — fully disabled, same as frozen
+
+      c.cooldown -= SIMULATION_DT;
+      if (c.cooldown > 0) continue;
+
+      // Target selection: taunt override beats everything. Otherwise Basilisk
+      // uses a STICKY target (keeps attacking the same enemy until it reaches
+      // max Poison stacks or becomes invalid), while everyone else just picks
+      // the nearest enemy in range fresh each time.
+      let target = null;
+      if (time < c.tauntUntil) {
+        const forced = byIndex.get(c.tauntTargetIndex);
+        if (forced && forced.alive) target = forced;
+      }
+      if (!target && c.type === 'Basilisk') {
+        const maxStacks = c.ability['Max Poison stacks'] || 8;
+        const sticky = c.stickyTargetIndex !== null ? byIndex.get(c.stickyTargetIndex) : null;
+        const stickyStillValid =
+          sticky && sticky.alive && chebyshevDistance(c.index, sticky.index) <= c.range && sticky.poison.stacks < maxStacks;
+        if (stickyStillValid) {
+          target = sticky;
+        } else {
+          const inRange = aliveEnemiesOf(c.owner).filter((e) => chebyshevDistance(c.index, e.index) <= c.range);
+          target = inRange.length > 0 ? inRange[Math.floor(rng() * inRange.length)] : null;
+          c.stickyTargetIndex = target ? target.index : null;
+        }
+      }
+      if (!target) {
+        let best = null;
+        let bestDist = Infinity;
+        for (const enemy of aliveEnemiesOf(c.owner)) {
+          const dist = chebyshevDistance(c.index, enemy.index);
+          if (dist <= c.range && (dist < bestDist || (dist === bestDist && best && enemy.index < best.index))) {
+            best = enemy;
+            bestDist = dist;
+          }
+        }
+        target = best;
+      }
+
+      if (!target) continue; // nothing in range this tick — idle
+
+      // Effective attack speed: Cold slow, Sylph buff, Kitsune's permanent
+      // flat bonus from dodging, and Basilisk's special extra multiplier
+      // (on top of its already-scaled base rate).
+      let effectiveAtkSpeed = c.baseAtkSpeed + c.flatAtkSpeedBonus;
+      if (c.cold.stacks > 0) {
+        effectiveAtkSpeed *= Math.max(0.1, 1 - 0.1 * c.cold.stacks); // 10% reduction per Cold stack
+      }
+      const sylphBoost = sylphBuffedIndices.get(c.index) || 0;
+      effectiveAtkSpeed *= 1 + sylphBoost;
+      if (c.type === 'Basilisk') {
+        effectiveAtkSpeed *= c.ability['Bonus ATK speed multiplier (beyond normal scaling)'] || 1;
+      }
+
+      c.cooldown = 1 / Math.max(0.05, effectiveAtkSpeed);
+
+      const distance = chebyshevDistance(c.index, target.index);
+
+      // Compute damage now (checks that depend on CURRENT state at the moment of firing)
+      let damage = c.atk;
+      if (c.type === 'Assassin') {
+        const hpPercent = (target.hp / target.maxHp) * 100;
+        const threshold = c.ability['HP threshold'];
+        const bonusPercent = c.ability['Bonus damage vs. low HP'];
+        if (hpPercent < threshold) {
+          damage *= 1 + bonusPercent / 100;
+        }
+      }
+      if (c.type === 'Gladiator') {
+        const hpPercent = (c.hp / c.maxHp) * 100;
+        const threshold = c.ability['HP threshold to activate'];
+        const bonusPercent = c.ability['Bonus damage dealt'];
+        if (hpPercent < threshold) {
+          damage *= 1 + bonusPercent / 100;
+        }
+      }
+      if (c.type === 'Sniper') {
+        const cap = c.ability['Max distance damage bonus'] || 0;
+        const perUnit = cap / 2; // matches the stated "0% / 20% / 40%" example at the 1★ cap of 40%
+        const bonus = Math.min(cap, perUnit * distance);
+        damage *= 1 + bonus / 100;
+      }
+      const isCrit = rng() < CRIT_CHANCE;
+      lastFireTime = time;
+
+      const travelTime = distance / PROJECTILE_SPEED;
+      const projectileId = nextProjectileId++;
+      projectiles.push({
+        id: projectileId,
+        sourceIndex: c.index,
+        targetIndex: target.index,
+        impactAt: time + travelTime,
+        damage,
+        isCrit,
+        sourceType: c.type,
+      });
+      timeline.push({
+        t: time,
+        type: 'fire',
+        id: projectileId,
+        from: c.index,
+        to: target.index,
+        travelTime,
+        sourceType: c.type,
+        isCrit,
+        damage: Math.round(damage),
+      });
+    }
+
+    time += SIMULATION_DT;
+  }
+
+  // ---------- Tally result ----------
+  const p1Alive = aliveAlliesOf(p1Id).length;
+  const p2Alive = aliveAlliesOf(p2Id).length;
+  let roundWinner = null;
+  if (p1Alive > p2Alive) roundWinner = p1Id;
+  else if (p2Alive > p1Alive) roundWinner = p2Id;
+
+  const deaths = combatants.filter((c) => !c.alive).map((c) => c.index);
+
+  events.push(
+    roundWinner
+      ? `Battle ends: ${p1Id} has ${p1Alive} left, ${p2Id} has ${p2Alive} left — ${roundWinner} wins the round.`
+      : `Battle ends: ${p1Id} has ${p1Alive} left, ${p2Id} has ${p2Alive} left — draw, no life lost.`
+  );
+
+  timeline.sort((a, b) => a.t - b.t);
+
+  return {
+    roundWinner,
+    p1Id,
+    p2Id,
+    aliveCounts: { [p1Id]: p1Alive, [p2Id]: p2Alive },
+    deaths,
+    events,
+    durationSeconds: Math.min(time, SIMULATION_DURATION),
+    // Starting positions/identities for the UI to render the battle —
+    // combatants never move, so this is all the animation needs.
+    combatants: combatants.map((c) => ({ index: c.index, owner: c.owner, type: c.type, stars: c.stars, maxHp: c.maxHp })),
+    timeline,
+  };
+}
+
+const exportsObj = {
+  simulateCombat,
+  SIMULATION_DURATION,
+  SIMULATION_DT,
+  PROJECTILE_SPEED,
+};
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = exportsObj;
+}
+if (typeof window !== 'undefined') {
+  window.StarBoardCombat = exportsObj;
+}
+
+} // end double-injection guard
+
+</script>
+  <script>
+/**
+ * UI layer only. All rules/state live in game/engine.js — this
+ * file just renders `game` and translates clicks into engine calls.
+ *
+ * Wrapped in an IIFE + guarded against double-init so this survives
+ * being re-injected into a page that's still running the previous
+ * copy (some live-preview environments re-run scripts without a
+ * full page reload, which otherwise causes "already declared" /
+ * duplicate-listener bugs).
+ */
+(function initStarBoardApp() {
+  if (window.__starBoardAppRunning) return;
+  window.__starBoardAppRunning = true;
+
+  const { GameEngine, BOARD_SIZE, MAX_STARS, BIG_STAR_THRESHOLD } = window.StarBoard;
+  const CharacterData = window.StarBoardCharacters;
+  const { CHARACTER_DEFS, computeCharacterStats } = CharacterData;
+  const { simulateCombat } = window.StarBoardCombat;
+  const NORMAL_STAR_PIPS = BIG_STAR_THRESHOLD - 1; // 1-5 shown as pips; 6 is the special Big Star tier
+  // Roster is driven entirely by characters.js — adding G, H, etc. there
+  // is the only change needed; the engine picks it up automatically.
+  const ROSTER = Object.keys(CHARACTER_DEFS);
+  // Combat is fully decoupled from the engine — this is the one place
+  // that wires characters.js + combat.js together and hands the engine
+  // a plain (board, rng) => result function to call at round boundaries.
+  const combatResolver = (board, rng) => simulateCombat(board, CharacterData, rng);
+
+  function newGame(p1Roster, p2Roster) {
+    return new GameEngine({
+      characterTypes: ROSTER,
+      playerRosters: { P1: p1Roster, P2: p2Roster },
+      combatResolver,
+    });
+  }
+
+  let game = null; // created once both players finish drafting — see beginMatch()
+  let draftedP1Roster = null;
+  let draftedP2Roster = null;
+  let selectedType = null; // which of the 2 offered characters is currently selected
+
+  const boardEl = document.getElementById('board');
+  const logEl = document.getElementById('log');
+  const battleReportEl = document.getElementById('battle-report');
+  const turnCounterEl = document.getElementById('turn-counter');
+  const turnEl = document.getElementById('turn-indicator');
+  const panelP1 = document.getElementById('panel-p1');
+  const panelP2 = document.getElementById('panel-p2');
+
+  function getIcon(type) {
+    const def = CHARACTER_DEFS[type];
+    return (def && def.icon) || (type ? type[0] : '?'); // fallback: first letter, for characters added without an icon yet
+  }
+
+  function chebyshevDistance(indexA, indexB) {
+    const rowA = Math.floor(indexA / 8), colA = indexA % 8;
+    const rowB = Math.floor(indexB / 8), colB = indexB % 8;
+    return Math.max(Math.abs(rowA - rowB), Math.abs(colA - colB));
+  }
+
+  /** Highlights every tile within `range` of `centerIndex` (inclusive of the center itself). */
+  function showRangePreview(centerIndex, range) {
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      if (chebyshevDistance(centerIndex, i) <= range) {
+        boardEl.children[i]?.classList.add('range-preview');
+      }
+    }
+    boardEl.children[centerIndex]?.classList.add('range-preview-center');
+  }
+
+  function clearRangePreview() {
+    for (const el of boardEl.children) {
+      el.classList.remove('range-preview', 'range-preview-center');
+    }
+  }
+
+  function starGlyphs(n) {
+    return '★'.repeat(n) + '☆'.repeat(NORMAL_STAR_PIPS - n);
+  }
+
+  function heartGlyphs(n, max = 5) {
+    return '♥'.repeat(Math.max(n, 0)) + '♡'.repeat(Math.max(max - n, 0));
+  }
+
+  function render() {
+    renderTurnCounter();
+    renderPanel('P1', panelP1);
+    renderPanel('P2', panelP2);
+    renderBoard();
+    renderTurnIndicator();
+    renderLog();
+    renderBattleReport();
+  }
+
+  function renderTurnCounter() {
+    turnCounterEl.textContent = `Turn ${game.turnNumber}`;
+  }
+
+  function renderPanel(playerId, panelEl) {
+    panelEl.innerHTML = '';
+
+    const heading = document.createElement('h2');
+    heading.textContent = playerId === 'P1' ? 'Player 1' : 'Player 2';
+    heading.style.color = playerId === 'P1' ? 'var(--p1)' : 'var(--p2)';
+    panelEl.appendChild(heading);
+
+    const hearts = document.createElement('div');
+    hearts.className = 'hearts';
+    hearts.textContent = heartGlyphs(game.getHealth(playerId));
+    panelEl.appendChild(hearts);
+
+    const shieldCount = game.getShields(playerId);
+    if (shieldCount > 0) {
+      const shields = document.createElement('div');
+      shields.className = 'shields';
+      shields.textContent = '🛡'.repeat(shieldCount) + ' shield' + (shieldCount > 1 ? 's' : '');
+      panelEl.appendChild(shields);
+    }
+
+    const isActive = playerId === game.currentPlayer && !game.winner;
+
+    const playsEl = document.createElement('div');
+    playsEl.className = 'plays-remaining';
+    playsEl.textContent = isActive ? `Plays remaining: ${game.actionsRemaining}` : 'Waiting…';
+    if (isActive) playsEl.classList.add('active');
+    panelEl.appendChild(playsEl);
+
+    // Offered character pair — only shown/selectable for the active player
+    const offerEl = document.createElement('div');
+    offerEl.className = 'offer';
+
+    if (isActive) {
+      const label = document.createElement('div');
+      label.className = 'offer-label';
+      label.textContent = 'Choose your play:';
+      offerEl.appendChild(label);
+
+      const optionsRow = document.createElement('div');
+      optionsRow.className = 'offer-options';
+      for (const type of game.currentOptions) {
+        const btn = document.createElement('button');
+        btn.className = 'offer-btn';
+        btn.textContent = type;
+        if (selectedType === type) btn.classList.add('selected');
+        btn.addEventListener('click', () => {
+          selectedType = selectedType === type ? null : type;
+          render();
+        });
+        optionsRow.appendChild(btn);
+      }
+      offerEl.appendChild(optionsRow);
+    } else {
+      offerEl.classList.add('dim');
+      offerEl.textContent = '—';
+    }
+
+    panelEl.appendChild(offerEl);
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    const activePlayer = game.currentPlayer;
+    // Render from the active player's perspective — their own pieces
+    // fully visible, opponent's pieces only as of the last reveal.
+    const visibleBoard = game.getVisibleBoard(activePlayer);
+
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      const cell = visibleBoard[i];
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+
+      if (cell) {
+        tile.classList.add(cell.owner === 'P1' ? 'owner-p1' : 'owner-p2');
+        const isBigStar = cell.stars >= BIG_STAR_THRESHOLD;
+        tile.title = `${cell.type} — ${isBigStar ? 'Big Star' : cell.stars + '★'}`;
+        tile.innerHTML = isBigStar
+          ? `
+            <div class="icon">${getIcon(cell.type)}</div>
+            <div class="stars big-star">✹ BIG STAR</div>
+          `
+          : `
+            <div class="icon">${getIcon(cell.type)}</div>
+            <div class="stars">${starGlyphs(cell.stars)}</div>
+          `;
+        if (isBigStar) tile.classList.add('big-star-tile');
+        if (cell.owner === activePlayer && cell.type === selectedType && cell.stars < MAX_STARS) {
+          tile.innerHTML += `<div class="upgrade-hint">tap to upgrade</div>`;
+        }
+      } else {
+        const zoneOwner = game.getZoneOwner(i);
+        tile.classList.add(zoneOwner === 'P1' ? 'zone-p1' : 'zone-p2');
+      }
+
+      // Legality is checked against the TRUE board, not the fogged view —
+      // this is safe because a player can only ever act on cells they're
+      // already allowed to know about in full (their own zone for fresh
+      // placements, or their own existing pieces for upgrades), so no
+      // hidden information ever leaks through the legality check itself.
+      const canAct = !game.winner && selectedType && isLegal(i, activePlayer, selectedType);
+      if (!canAct) tile.classList.add('illegal');
+
+      tile.addEventListener('click', () => {
+        if (game.winner) return;
+        if (!selectedType) return; // must pick one of the offered characters first
+        if (!isLegal(i, activePlayer, selectedType)) return;
+        try {
+          game.playMove(activePlayer, i, selectedType);
+          selectedType = null;
+          renderOrPlayCombat();
+        } catch (err) {
+          console.error(err.message);
+        }
+      });
+
+      // Hover preview: if hovering an existing character, show ITS attack
+      // range; if hovering an empty tile while a character is selected to
+      // place, preview what its range WOULD be from there (always at 1★,
+      // since a fresh placement always starts at 1 star).
+      tile.addEventListener('mouseenter', () => {
+        if (cell) {
+          const range = computeCharacterStats(cell.type, cell.stars).range;
+          showRangePreview(i, range);
+        } else if (selectedType && isLegal(i, activePlayer, selectedType)) {
+          const range = computeCharacterStats(selectedType, 1).range;
+          showRangePreview(i, range);
+        }
+      });
+      tile.addEventListener('mouseleave', clearRangePreview);
+
+      boardEl.appendChild(tile);
+    }
+  }
+
+  function isLegal(index, playerId, type) {
+    const cell = game.board[index]; // true board — safe, see comment in renderBoard
+    if (cell === null) return game.getZoneOwner(index) === playerId;
+    return cell.owner === playerId && cell.type === type && cell.stars < MAX_STARS;
+  }
+
+  function renderTurnIndicator() {
+    if (game.winner) {
+      turnEl.innerHTML = `<div class="winner-banner">${game.winner} wins the match!</div>`;
+      return;
+    }
+    const cls = game.currentPlayer === 'P1' ? 'p1-color' : 'p2-color';
+    turnEl.innerHTML = `<span class="name ${cls}">${game.currentPlayer}</span> to move ${selectedType ? `(placing/upgrading <b>${selectedType}</b>)` : '— pick one of the offered characters'}`;
+  }
+
+  function renderLog() {
+    const visibleLog = game.getVisibleLog(game.currentPlayer);
+    logEl.innerHTML = visibleLog.slice(-8).map((line) => `<div>${line}</div>`).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  /** Shows the most recent battle's outcome — who won the round and a short highlight reel. */
+  function renderBattleReport() {
+    const result = game.lastCombatResult;
+    if (!result) {
+      battleReportEl.innerHTML = '';
+      return;
+    }
+    const resultLine = result.roundWinner
+      ? `<b>${result.roundWinner}</b> won the last battle`
+      : `Last battle was a <b>draw</b>`;
+    const counts = Object.entries(result.aliveCounts)
+      .map(([pid, count]) => `${pid}: ${count} left`)
+      .join(' · ');
+    const highlights = result.events.slice(-6).map((e) => `<div>${e}</div>`).join('');
+    battleReportEl.innerHTML = `
+      <div class="battle-report-header">⚔️ Battle Report — ${resultLine} (${counts})</div>
+      <div class="battle-report-events">${highlights}</div>
+    `;
+  }
+
+  // Reset control
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'reset-btn';
+  resetBtn.textContent = 'Reset game';
+  resetBtn.addEventListener('click', () => {
+    game = newGame(draftedP1Roster, draftedP2Roster);
+    selectedType = null;
+    lastPlayedCombatResult = null;
+    replayBtn.disabled = true;
+    render();
+  });
+  document.querySelector('.app').appendChild(resetBtn);
+  document.querySelector('.app').appendChild(logEl); // move log below reset button — it's not very important
+
+  // ---------- Combat playback ----------
+  // Plays out directly on the real #board (no separate modal/mini-board) —
+  // both players' full pieces are shown during playback (combat happens
+  // right after reveal anyway, so there's no fog-of-war reason to hide
+  // anything here), with a "Skip combat" button and status line that only
+  // appear while a battle is actually playing.
+
+  const combatStatusEl = document.getElementById('combat-status');
+  const combatControlsEl = document.getElementById('combat-controls');
+  const skipCombatBtn = document.getElementById('skip-combat-btn');
+  const speedButtons = document.querySelectorAll('.speed-btn');
+  const replayBtn = document.getElementById('replay-btn');
+
+  let playbackSpeed = 1; // live-adjustable, 0.25x-2x
+  let isPlayingBack = false;
+
+  speedButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      playbackSpeed = parseFloat(btn.dataset.speed);
+      speedButtons.forEach((b) => b.classList.toggle('selected', b === btn));
+    });
+  });
+
+  replayBtn.addEventListener('click', () => {
+    if (isPlayingBack || !lastPlayedCombatResult) return;
+    // Pure visual replay of an already-decided battle — doesn't touch
+    // game state at all (hearts/shields were already applied the first
+    // time this battle happened), so it's always safe to re-run.
+    playCombatAnimation(lastPlayedCombatResult, render);
+  });
+
+  let lastPlayedCombatResult = null; // tracks which battle we've already shown, so we don't replay it
+  let combatTileByIndex = new Map();
+
+  /** Called after every move — plays the battle animation if a new one just happened, otherwise just renders normally. */
+  function renderOrPlayCombat() {
+    const result = game.lastCombatResult;
+    if (result && result !== lastPlayedCombatResult) {
+      lastPlayedCombatResult = result;
+      playCombatAnimation(result, render);
+    } else {
+      render();
+    }
+  }
+
+  /** Renders every combatant directly onto the real board tiles for the battle. */
+  let combatHpByIndex = new Map(); // index -> { current, max, fillEl, trackEl }
+
+  function buildCombatBoard(combatants) {
+    boardEl.innerHTML = '';
+    combatTileByIndex = new Map();
+    combatHpByIndex = new Map();
+    const byIndex = new Map(combatants.map((c) => [c.index, c]));
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      const c = byIndex.get(i);
+      if (c) {
+        tile.classList.add(c.owner === 'P1' ? 'owner-p1' : 'owner-p2');
+        const isBigStar = c.stars >= BIG_STAR_THRESHOLD;
+        const isStarredUp = c.stars >= 2; // clearly marked during battle, per player request
+        tile.title = `${c.type} — ${isBigStar ? 'Big Star' : c.stars + '★'}`;
+        if (isStarredUp) tile.classList.add('starred-up');
+        tile.innerHTML = `
+          <div class="hp-bar-track"><div class="hp-bar-fill"></div></div>
+          <div class="icon">${getIcon(c.type)}</div>
+          <div class="stars ${isBigStar ? 'big-star' : ''}">${isBigStar ? '✹ BIG STAR' : starGlyphs(c.stars)}</div>
+        `;
+        combatTileByIndex.set(i, tile);
+        combatHpByIndex.set(i, {
+          current: c.maxHp,
+          max: c.maxHp,
+          fillEl: tile.querySelector('.hp-bar-fill'),
+          trackEl: tile.querySelector('.hp-bar-track'),
+        });
+      }
+      boardEl.appendChild(tile);
+    }
+  }
+
+  /** Applies damage to the tracked HP for a combatant and updates its bar — only visible below 100% HP. */
+  function applyHpChange(index, amount) {
+    const hp = combatHpByIndex.get(index);
+    if (!hp) return;
+    hp.current = Math.max(0, hp.current - amount);
+    updateHpBar(index);
+  }
+
+  function updateHpBar(index) {
+    const hp = combatHpByIndex.get(index);
+    if (!hp) return;
+    const percent = Math.max(0, Math.min(100, (hp.current / hp.max) * 100));
+    hp.fillEl.style.width = percent + '%';
+    hp.fillEl.style.background = percent > 50 ? '#4caf50' : percent > 20 ? '#e0b74e' : '#e2536b';
+    hp.trackEl.classList.toggle('visible', percent < 100);
+  }
+
+  let projectileBallsById = new Map(); // id -> { ball, stepFn } — lets a 'cancel' event stop a specific ball early
+
+  function animateProjectile(id, fromIndex, toIndex, durationMs, isCrit) {
+    const fromEl = combatTileByIndex.get(fromIndex);
+    const toEl = combatTileByIndex.get(toIndex);
+    if (!fromEl || !toEl) return;
+    const boardRect = boardEl.getBoundingClientRect();
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const x1 = fromRect.left + fromRect.width / 2 - boardRect.left;
+    const y1 = fromRect.top + fromRect.height / 2 - boardRect.top;
+    const x2 = toRect.left + toRect.width / 2 - boardRect.left;
+    const y2 = toRect.top + toRect.height / 2 - boardRect.top;
+
+    const ball = document.createElement('div');
+    ball.className = 'combat-projectile' + (isCrit ? ' crit' : '');
+    ball.style.left = x1 + 'px';
+    ball.style.top = y1 + 'px';
+    boardEl.appendChild(ball);
+
+    let cancelled = false;
+    const start = performance.now();
+    function step(now) {
+      if (cancelled) return;
+      const t = Math.min(1, durationMs <= 0 ? 1 : (now - start) / durationMs);
+      ball.style.left = x1 + (x2 - x1) * t + 'px';
+      ball.style.top = y1 + (y2 - y1) * t + 'px';
+      if (t < 1) requestAnimationFrame(step);
+      else {
+        ball.remove();
+        projectileBallsById.delete(id);
+      }
+    }
+    requestAnimationFrame(step);
+    projectileBallsById.set(id, {
+      cancel: () => {
+        cancelled = true;
+        ball.style.transition = 'opacity 0.2s ease';
+        ball.style.opacity = '0';
+        setTimeout(() => ball.remove(), 200);
+      },
+    });
+  }
+
+  function showDamagePopup(index, damage, isCrit) {
+    const el = combatTileByIndex.get(index);
+    if (!el) return;
+    const boardRect = boardEl.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    const popup = document.createElement('div');
+    popup.className = 'combat-dmg-popup' + (isCrit ? ' crit' : '');
+    popup.textContent = '-' + damage;
+    popup.style.left = rect.left + rect.width / 2 - boardRect.left + 'px';
+    popup.style.top = rect.top + rect.height / 2 - boardRect.top + 'px';
+    boardEl.appendChild(popup);
+    setTimeout(() => popup.remove(), 650);
+  }
+
+  /** Same floating-popup effect as damage numbers, but for short text feedback like "DODGE!" */
+  function showTextPopup(index, text) {
+    const el = combatTileByIndex.get(index);
+    if (!el) return;
+    const boardRect = boardEl.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    const popup = document.createElement('div');
+    popup.className = 'combat-dmg-popup combat-text-popup';
+    popup.textContent = text;
+    popup.style.left = rect.left + rect.width / 2 - boardRect.left + 'px';
+    popup.style.top = rect.top + rect.height / 2 - boardRect.top + 'px';
+    boardEl.appendChild(popup);
+    setTimeout(() => popup.remove(), 650);
+  }
+
+  function handleTimelineEvent(ev) {
+    if (ev.type === 'fire') {
+      animateProjectile(ev.id, ev.from, ev.to, ev.travelTime * 1000, ev.isCrit);
+    } else if (ev.type === 'cancel') {
+      // Target died before this projectile landed — stop it early instead
+      // of letting it visually keep flying at (and "hitting") a corpse.
+      const entry = projectileBallsById.get(ev.id);
+      if (entry) entry.cancel();
+    } else if (ev.type === 'impact') {
+      const el = combatTileByIndex.get(ev.to);
+      if (el) {
+        el.classList.add('flash-hit');
+        setTimeout(() => el.classList.remove('flash-hit'), 250);
+      }
+      showDamagePopup(ev.to, ev.damage, ev.isCrit);
+      applyHpChange(ev.to, ev.damage);
+    } else if (ev.type === 'damage') {
+      // Secondary damage not tied to a projectile (burn ticks, Big Star bonus hits)
+      showDamagePopup(ev.index, ev.amount, false);
+      applyHpChange(ev.index, ev.amount);
+    } else if (ev.type === 'freeze') {
+      const el = combatTileByIndex.get(ev.index);
+      if (el) {
+        el.classList.add('flash-frozen');
+        setTimeout(() => el.classList.remove('flash-frozen'), 1200);
+      }
+    } else if (ev.type === 'poison') {
+      // Persistent glow (not a transient flash) — Poison doesn't expire in
+      // this version of the mechanic, so it just stays on until defeated.
+      combatTileByIndex.get(ev.index)?.classList.add('poisoned');
+    } else if (ev.type === 'death') {
+      combatTileByIndex.get(ev.index)?.classList.add('defeated');
+    } else if (ev.type === 'revive') {
+      combatTileByIndex.get(ev.index)?.classList.remove('defeated');
+      const hp = combatHpByIndex.get(ev.index);
+      if (hp) {
+        hp.current = ev.hp;
+        updateHpBar(ev.index);
+      }
+    } else if (ev.type === 'dodge') {
+      const el = combatTileByIndex.get(ev.index);
+      if (el) {
+        el.classList.add('flash-dodge');
+        setTimeout(() => el.classList.remove('flash-dodge'), 400);
+      }
+      showTextPopup(ev.index, 'DODGE!');
+    } else if (ev.type === 'teleport') {
+      // A character (Kitsune) moved to a different tile mid-battle. Move
+      // its actual DOM content over to the new tile, leave a fading
+      // afterimage at the old tile for 0.5s before clearing it, and
+      // re-point all tracking maps at the new index — otherwise every
+      // subsequent event referencing this character would silently
+      // target the wrong (or a nonexistent) tile.
+      const oldTile = combatTileByIndex.get(ev.from);
+      const newTile = boardEl.children[ev.index]; // every one of the 64 tiles always exists in the DOM
+      if (oldTile && newTile) {
+        newTile.className = oldTile.className;
+        newTile.innerHTML = oldTile.innerHTML;
+        newTile.title = oldTile.title;
+        newTile.classList.add('teleport-in');
+        setTimeout(() => newTile.classList.remove('teleport-in'), 400);
+
+        // Leave the character's content lingering at the old tile as a
+        // fading afterimage for 0.5s, THEN clear it back to empty — this
+        // is the "short animation which lasts in its initial place" part.
+        oldTile.classList.add('teleport-afterimage');
+        setTimeout(() => {
+          oldTile.className = 'tile';
+          oldTile.innerHTML = '';
+          oldTile.title = '';
+        }, 500);
+
+        const hpData = combatHpByIndex.get(ev.from);
+        if (hpData) {
+          hpData.fillEl = newTile.querySelector('.hp-bar-fill');
+          hpData.trackEl = newTile.querySelector('.hp-bar-track');
+          combatHpByIndex.delete(ev.from);
+          combatHpByIndex.set(ev.index, hpData);
+        }
+        combatTileByIndex.delete(ev.from);
+        combatTileByIndex.set(ev.index, newTile);
+      }
+    }
+  }
+
+  /**
+   * Plays back a completed battle's recorded timeline in real time, live
+   * on the actual board (the outcome is already fully determined — this
+   * is a visual replay, not a live simulation). Calls onDone() once the
+   * battle is over, either by finishing naturally or via Skip — onDone
+   * is `render`, which redraws the board back to normal placement mode.
+   */
+  function playCombatAnimation(result, onDone) {
+    buildCombatBoard(result.combatants);
+    projectileBallsById = new Map();
+    isPlayingBack = true;
+    replayBtn.disabled = true; // don't allow overlapping playbacks
+    combatStatusEl.textContent = `⚔️ Round ${game.turnNumber - 1} battle — 0.0s / ${result.durationSeconds.toFixed(1)}s`;
+    combatStatusEl.classList.add('visible');
+    combatControlsEl.classList.add('visible');
+
+    const events = result.timeline; // already time-sorted by combat.js
+    let eventIndex = 0;
+    let virtualTime = 0;
+    let finished = false;
+    let rafId = null;
+    let lastFrameTs = null;
+
+    function finish() {
+      if (finished) return;
+      finished = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      boardEl.querySelectorAll('.combat-projectile, .combat-dmg-popup').forEach((el) => el.remove());
+      // Snap every tile straight to its true final state (matters if skipped early)
+      for (const [index, el] of combatTileByIndex.entries()) {
+        el.classList.toggle('defeated', result.deaths.includes(index));
+      }
+      combatStatusEl.textContent = result.roundWinner
+        ? `⚔️ ${result.roundWinner} wins the round!`
+        : `⚔️ Round ended in a draw — no life lost.`;
+      combatControlsEl.classList.remove('visible');
+      isPlayingBack = false;
+      replayBtn.disabled = !lastPlayedCombatResult;
+      // Hold the final result on screen for a few seconds before moving on,
+      // whether the battle finished naturally or was skipped.
+      setTimeout(() => {
+        combatStatusEl.classList.remove('visible');
+        onDone();
+      }, 5000);
+    }
+
+    // requestAnimationFrame-driven virtual clock, rather than one setTimeout
+    // per event — this is what lets playback SPEED be changed live, mid-battle,
+    // since `playbackSpeed` is just read fresh every frame rather than baked
+    // into a fixed schedule up front.
+    function frame(now) {
+      if (finished) return;
+      if (lastFrameTs === null) lastFrameTs = now;
+      const realDeltaSeconds = (now - lastFrameTs) / 1000;
+      lastFrameTs = now;
+      virtualTime += realDeltaSeconds * playbackSpeed;
+
+      while (eventIndex < events.length && events[eventIndex].t <= virtualTime) {
+        handleTimelineEvent(events[eventIndex]);
+        eventIndex++;
+      }
+
+      combatStatusEl.textContent = `⚔️ Round ${game.turnNumber - 1} battle — ${Math.min(virtualTime, result.durationSeconds).toFixed(1)}s / ${result.durationSeconds.toFixed(1)}s`;
+
+      if (virtualTime >= result.durationSeconds) {
+        finish();
+      } else {
+        rafId = requestAnimationFrame(frame);
+      }
+    }
+    rafId = requestAnimationFrame(frame);
+
+    skipCombatBtn.onclick = finish;
+  }
+
+  // ---------- Wiki modal ----------
+
+  const { getAllStarTiers } = window.StarBoardCharacters;
+  const wikiBtn = document.getElementById('wiki-btn');
+  const wikiOverlay = document.getElementById('wiki-overlay');
+  const wikiCloseBtn = document.getElementById('wiki-close-btn');
+  const wikiBody = document.getElementById('wiki-modal-body');
+  const CHARACTER_TYPES_FOR_WIKI = ROSTER;
+  let wikiSelectedType = CHARACTER_TYPES_FOR_WIKI[0];
+
+  function renderWiki() {
+    const def = CHARACTER_DEFS[wikiSelectedType];
+    const tiers = getAllStarTiers(wikiSelectedType);
+    const abilityLabels = (def.abilityStats || []).map((s) => s.label);
+
+    const nav = CHARACTER_TYPES_FOR_WIKI.map((t) => `
+      <button class="wiki-char-tab${t === wikiSelectedType ? ' selected' : ''}" data-type="${t}">${t}</button>
+    `).join('');
+
+    const abilityHeaders = abilityLabels.map((label) => `<th>${label}</th>`).join('');
+
+    const rows = tiers.map((t) => {
+      const abilityCells = t.abilityStats.map((s) => `<td>${s.value}</td>`).join('');
+      return `
+        <tr class="${t.isBigStar ? 'big-star-row' : ''}">
+          <td>${t.isBigStar ? '✹ Big' : t.stars + '★'}</td>
+          <td>${t.hp}</td>
+          <td>${t.atk}</td>
+          <td>${t.atkSpeed}</td>
+          <td>${t.range}</td>
+          ${abilityCells}
+        </tr>
+      `;
+    }).join('');
+
+    wikiBody.innerHTML = `
+      <div class="wiki-char-nav">${nav}</div>
+      <div class="wiki-char-name">${wikiSelectedType}</div>
+      <div class="wiki-char-role">Rarity: ${def.rarity}</div>
+      <div class="wiki-ability-box">
+        <div class="wiki-ability-name">${def.uniqueAbility.name}</div>
+        <div class="wiki-ability-desc">${def.uniqueAbility.description}</div>
+      </div>
+      <table class="wiki-stats-table">
+        <thead>
+          <tr><th>Star</th><th>HP</th><th>ATK</th><th>ATK SPD</th><th>Range</th>${abilityHeaders}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    wikiBody.querySelectorAll('.wiki-char-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        wikiSelectedType = btn.dataset.type;
+        renderWiki();
+      });
+    });
+  }
+
+  wikiBtn.addEventListener('click', () => {
+    renderWiki();
+    wikiOverlay.classList.add('open');
+  });
+  wikiCloseBtn.addEventListener('click', () => wikiOverlay.classList.remove('open'));
+  wikiOverlay.addEventListener('click', (e) => {
+    if (e.target === wikiOverlay) wikiOverlay.classList.remove('open');
+  });
+
+  // ---------- Pre-game draft ----------
+  // Each player privately picks their own 6-character roster before the
+  // match starts. P1 drafts, then a "pass the device" screen hides their
+  // picks before P2 drafts — neither ever sees the other's choices in the
+  // UI (though obviously whatever they place on the board reveals itself
+  // during play, same as normal). Exactly 6, no more, no less, enforced
+  // by disabling Confirm until the count is right.
+
+  const appRootEl = document.getElementById('app-root');
+  const draftScreenEl = document.getElementById('draft-screen');
+  const draftSubheadingEl = document.getElementById('draft-subheading');
+  const draftCounterEl = document.getElementById('draft-counter');
+  const draftGridEl = document.getElementById('draft-grid');
+  const draftConfirmBtn = document.getElementById('draft-confirm-btn');
+  const passScreenEl = document.getElementById('pass-screen');
+  const passContinueBtn = document.getElementById('pass-continue-btn');
+
+  let draftSelections = new Set();
+  let currentDraftingPlayer = 'P1';
+
+  function buildDraftGrid() {
+    draftGridEl.innerHTML = '';
+    for (const name of ROSTER) {
+      const def = CHARACTER_DEFS[name];
+      const card = document.createElement('div');
+      card.className = 'draft-card';
+      card.innerHTML = `
+        <div class="draft-card-icon">${getIcon(name)}</div>
+        <div class="draft-card-name">${name}</div>
+        <div class="draft-card-rarity">${def.rarity}</div>
+      `;
+      card.addEventListener('click', () => toggleDraftCard(name, card));
+      draftGridEl.appendChild(card);
+    }
+  }
+
+  function toggleDraftCard(name, cardEl) {
+    if (draftSelections.has(name)) {
+      draftSelections.delete(name);
+      cardEl.classList.remove('selected');
+    } else {
+      if (draftSelections.size >= 6) return; // can't pick more than 6
+      draftSelections.add(name);
+      cardEl.classList.add('selected');
+    }
+    updateDraftCounter();
+  }
+
+  function updateDraftCounter() {
+    draftCounterEl.textContent = `${draftSelections.size} / 6 selected`;
+    draftConfirmBtn.disabled = draftSelections.size !== 6; // can't pick fewer than 6 either
+  }
+
+  draftConfirmBtn.addEventListener('click', () => {
+    if (draftSelections.size !== 6) return; // safety net alongside the disabled state
+    const picks = [...draftSelections];
+    if (currentDraftingPlayer === 'P1') {
+      draftedP1Roster = picks;
+      currentDraftingPlayer = 'P2';
+      draftScreenEl.classList.add('hidden');
+      passScreenEl.classList.remove('hidden');
+    } else {
+      draftedP2Roster = picks;
+      draftScreenEl.classList.add('hidden');
+      beginMatch();
+    }
+  });
+
+  passContinueBtn.addEventListener('click', () => {
+    passScreenEl.classList.add('hidden');
+    draftSelections = new Set();
+    draftSubheadingEl.textContent = 'Player 2 — pick your 6 characters';
+    buildDraftGrid();
+    updateDraftCounter();
+    draftScreenEl.classList.remove('hidden');
+  });
+
+  function beginMatch() {
+    game = newGame(draftedP1Roster, draftedP2Roster);
+    selectedType = null;
+    lastPlayedCombatResult = null;
+    appRootEl.classList.remove('hidden');
+    render();
+  }
+
+  buildDraftGrid();
+  updateDraftCounter();
+})();
+
+</script>
+
+</body>
+</html>
